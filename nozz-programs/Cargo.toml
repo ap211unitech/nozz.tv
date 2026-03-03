@@ -1,0 +1,10 @@
+[package]
+name = "nozz-programs"
+version.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+repository.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]

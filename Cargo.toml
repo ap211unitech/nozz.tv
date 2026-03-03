@@ -1,0 +1,11 @@
+[workspace]
+members = ["nozz-programs"]
+resolver = '3'
+
+[workspace.package]
+version = "0.1.0"
+rust-version = "1.93.1"
+edition = "2024"
+repository = "https://github.com/ap211unitech/soldelta"
+authors = ["Arjun Porwal <porwalarjun95@gmail.com>"]
+license = "MIT"
