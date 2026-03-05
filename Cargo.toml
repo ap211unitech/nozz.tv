@@ -1,14 +1,15 @@
 [workspace]
 members = ["nozz-programs/*", "tests"]
-resolver = "3"
+resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
 rust-version = "1.93.1"
-edition = "2024"
-repository = "https://github.com/ap211unitech/soldelta"
+edition = "2021"
+repository = "https://github.com/NOZZ-TV/nozz-program-v1"
 authors = ["Arjun Porwal <porwalarjun95@gmail.com>"]
 license = "MIT"
+license-file = "LICENSE"
 
 [profile.release]
 overflow-checks = true

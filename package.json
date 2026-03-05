@@ -1,8 +1,9 @@
 {
-  "name": "nozz",
+  "name": "nozz-programs",
   "version": "0.1.0",
   "description": "Nozz - Empowering Streamers and Engaging Viewers",
   "license": "MIT",
+  "licenseFile": "LICENSE",
   "repository": {
     "type": "git",
     "url": "https://github.com/NOZZ-TV/nozz-program-v1"
