@@ -22,4 +22,9 @@ pub mod nozz_launchpad {
     ) -> Result<()> {
         initialize_config::handler(ctx, params)
     }
+
+    /// Create a new streamer token with bonding curve
+    pub fn create_token(ctx: Context<CreateToken>, params: CreateTokenParams) -> Result<()> {
+        create_token::handler(ctx, params)
+    }
 }
