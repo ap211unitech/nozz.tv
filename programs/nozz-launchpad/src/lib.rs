@@ -14,7 +14,11 @@ declare_id!("6zp1FgL5FShDjJoh8hoBztncuYWvSANvPHUZFceiVFsy");
 pub mod nozz_launchpad {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        initialize::handler(ctx)
+    /// Initialize the global platform config (admin only)
+    pub fn initialize_config(
+        ctx: Context<InitializeConfig>,
+        params: InitializeConfigParams,
+    ) -> Result<()> {
+        initialize_config::handler(ctx, params)
     }
 }
