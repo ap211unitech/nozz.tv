@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::{error::NozzError, state::NozzLaunchpadConfig};
+use crate::{error::NozzError, state::NozzLaunchpadConfig, CREATOR_TOKEN_MINT_DECIMALS};
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct InitializeConfigParams {
@@ -34,13 +34,19 @@ pub fn handler(ctx: Context<InitializeConfig>, params: InitializeConfigParams) -
     );
     require!(params.graduation_sol_threshold > 0, NozzError::ZeroAmount);
 
+    let token_decimals_factor: u64 = (10 as u64).pow(CREATOR_TOKEN_MINT_DECIMALS as u32);
+    let total_supply = params
+        .initial_token_supply
+        .checked_mul(token_decimals_factor)
+        .unwrap();
+
     let config = &mut ctx.accounts.nozz_launchpad_config;
     config.authority = ctx.accounts.authority.key();
     config.fee_recipient = params.fee_recipient;
     config.platform_fee_bps = params.platform_fee_bps;
     config.streamer_fee_bps = params.streamer_fee_bps;
     config.graduation_sol_threshold = params.graduation_sol_threshold;
-    config.initial_token_supply = params.initial_token_supply;
+    config.initial_token_supply = total_supply;
     config.bonding_curve_supply_pct = params.bonding_curve_supply_pct;
     config.token_count = 0;
     config.bump = ctx.bumps.nozz_launchpad_config;
