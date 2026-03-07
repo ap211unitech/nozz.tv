@@ -8,7 +8,7 @@ use anchor_lang::prelude::*;
 pub use constants::*;
 pub use instructions::*;
 
-declare_id!("34scY4TwzGLstqnXjjYmDVpyvKt1z27Abb3skAdkwn4f");
+declare_id!("HPzJyeHvXQ8vTMkosr6DV1T3JBZQr1t9VinBS7FA7614");
 
 #[program]
 pub mod nozz_dex {

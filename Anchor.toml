@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-nozz_dex = "34scY4TwzGLstqnXjjYmDVpyvKt1z27Abb3skAdkwn4f"
+nozz_dex = "HPzJyeHvXQ8vTMkosr6DV1T3JBZQr1t9VinBS7FA7614"
 
 [registry]
 url = "https://api.apr.dev"
