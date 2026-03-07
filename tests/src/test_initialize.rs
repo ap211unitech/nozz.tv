@@ -19,8 +19,8 @@ fn test_initialize() {
 
     let tx = program
         .request()
-        .accounts(nozz_dex::accounts::Initialize {})
-        .args(nozz_dex::instruction::Initialize {})
+        .accounts(nozz_launchpad::accounts::Initialize {})
+        .args(nozz_launchpad::instruction::Initialize {})
         .send()
         .expect("");
 

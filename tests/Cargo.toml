@@ -7,4 +7,4 @@ rust-version = "1.93.1"
 
 [dependencies]
 anchor-client = "0.32.1"
-nozz-dex = { version = "0.1.0", path = "../programs/nozz-dex" }
+nozz-launchpad = { version = "0.1.0", path = "../programs/nozz-launchpad" }
