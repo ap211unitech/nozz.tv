@@ -25,23 +25,6 @@ pub struct InitializeConfigParams {
     pub bonding_curve_supply_pct: u8,
 }
 
-#[derive(Accounts)]
-pub struct InitializeConfig<'info> {
-    #[account(mut)]
-    pub authority: Signer<'info>,
-
-    #[account(
-        init,
-        payer = authority,
-        space = (ANCHOR_DISCRIMINATOR as usize) + NozzLaunchpadConfig::LEN,
-        seeds=[NozzLaunchpadConfig::SEED],
-        bump
-    )]
-    pub nozz_launchpad_config: Account<'info, NozzLaunchpadConfig>,
-
-    pub system_program: Program<'info, System>,
-}
-
 pub fn handler(ctx: Context<InitializeConfig>, params: InitializeConfigParams) -> Result<()> {
     require!(params.platform_fee_bps <= 1000, NozzError::InvalidFee);
     require!(params.streamer_fee_bps <= 1000, NozzError::InvalidFee);
@@ -67,4 +50,21 @@ pub fn handler(ctx: Context<InitializeConfig>, params: InitializeConfigParams) -
         params.graduation_sol_threshold
     );
     Ok(())
+}
+
+#[derive(Accounts)]
+pub struct InitializeConfig<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+
+    #[account(
+        init,
+        payer = authority,
+        space = (ANCHOR_DISCRIMINATOR as usize) + NozzLaunchpadConfig::LEN,
+        seeds=[NozzLaunchpadConfig::SEED],
+        bump
+    )]
+    pub nozz_launchpad_config: Account<'info, NozzLaunchpadConfig>,
+
+    pub system_program: Program<'info, System>,
 }
