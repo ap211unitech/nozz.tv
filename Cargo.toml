@@ -1,5 +1,5 @@
 [workspace]
-members = ["nozz-programs/*", "tests"]
+members = ["programs/*", "tests"]
 resolver = "2"
 
 [workspace.package]
