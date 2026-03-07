@@ -7,7 +7,7 @@ use anchor_spl::{
 };
 
 use crate::{
-    BondingCurve, BondingCurveVaultSOL, NozzLaunchpadConfig, TokenCreated,
+    utils::VIRTUAL_SOL_SEED, BondingCurve, BondingCurveVaultSOL, NozzLaunchpadConfig, TokenCreated,
     CREATOR_TOKEN_MINT_DECIMALS,
 };
 
@@ -18,9 +18,6 @@ pub struct CreateTokenParams {
     token_description: String,
     token_uri: String,
 }
-
-// TODO: Move to config
-const VIRTUAL_SOL_SEED: u64 = 30 * 1000_000;
 
 pub fn handler(ctx: Context<CreateToken>, params: CreateTokenParams) -> Result<()> {
     let config = &ctx.accounts.nozz_launchpad_config;
@@ -38,31 +35,32 @@ pub fn handler(ctx: Context<CreateToken>, params: CreateTokenParams) -> Result<(
         .checked_div(100)
         .unwrap();
 
-    // ── Initialize bonding curve state ────────────────────────────────────────
-    let bonding_curve = &mut ctx.accounts.bonding_curve;
-    bonding_curve.mint = token_mint;
-    bonding_curve.creator = ctx.accounts.creator.key();
-    bonding_curve.name = params.token_name.clone();
-    bonding_curve.symbol = params.token_ticker.clone();
-    bonding_curve.uri = params.token_uri.clone();
+    ctx.accounts.bonding_curve.set_inner(BondingCurve {
+        // Initialize bonding curve state
+        mint: token_mint,
+        creator: ctx.accounts.creator.key(),
+        name: params.token_name.clone(),
+        symbol: params.token_ticker.clone(),
+        uri: params.token_uri.clone(),
 
-    // Virtual SOL seed bootstraps price — no real SOL deposited yet
-    bonding_curve.virtual_sol_reserves = VIRTUAL_SOL_SEED;
-    bonding_curve.virtual_token_reserves = bonding_allocation;
-    bonding_curve.real_sol_reserves = 0;
-    bonding_curve.real_token_reserves = bonding_allocation;
-    bonding_curve.total_supply = total_supply;
-    bonding_curve.bonding_curve_allocation = bonding_allocation;
+        // Virtual SOL seed bootstraps price — no real SOL deposited yet
+        virtual_sol_reserves: VIRTUAL_SOL_SEED,
+        virtual_token_reserves: bonding_allocation,
+        real_sol_reserves: 0,
+        real_token_reserves: bonding_allocation,
+        total_supply,
+        bonding_curve_allocation: bonding_allocation,
 
-    // Snapshot threshold from config so it doesn't change mid-curve
-    bonding_curve.graduation_sol_threshold = config.graduation_sol_threshold;
-    bonding_curve.complete = false;
-    bonding_curve.migrated = false;
-    bonding_curve.pending_creator_fees = 0;
-    bonding_curve.created_at = clock.unix_timestamp;
-    bonding_curve.total_volume = 0;
-    bonding_curve.bump = ctx.bumps.bonding_curve;
-    bonding_curve.vault_bump = ctx.bumps.bonding_curve_vault;
+        // Snapshot threshold from config so it doesn't change mid-curve
+        graduation_sol_threshold: config.graduation_sol_threshold,
+        complete: false,
+        migrated: false,
+        pending_creator_fees: 0,
+        created_at: clock.unix_timestamp,
+        total_volume: 0,
+        bump: ctx.bumps.bonding_curve,
+        vault_bump: ctx.bumps.bonding_curve_vault,
+    });
 
     // Mint entire supply to bonding curve token account
     // 40% will be sold via the curve; 60% stays locked for DEX liquidity
