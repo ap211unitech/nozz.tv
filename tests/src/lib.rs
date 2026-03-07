@@ -1,2 +1,2 @@
 #[cfg(test)]
-mod test_initialize;
+mod initialize_config;

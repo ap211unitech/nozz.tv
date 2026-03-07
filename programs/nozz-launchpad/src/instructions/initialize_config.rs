@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::{error::NozzError, state::NozzLaunchpadConfig};
+use crate::{error::NozzError, state::NozzLaunchpadConfig, ANCHOR_DISCRIMINATOR};
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct InitializeConfigParams {
@@ -33,7 +33,7 @@ pub struct InitializeConfig<'info> {
     #[account(
         init,
         payer = authority,
-        space = NozzLaunchpadConfig::LEN,
+        space = (ANCHOR_DISCRIMINATOR as usize) + NozzLaunchpadConfig::LEN,
         seeds=[NozzLaunchpadConfig::SEED],
         bump
     )]

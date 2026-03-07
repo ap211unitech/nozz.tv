@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 /// Global platform configuration (singleton PDA)
 #[account]
-#[derive(InitSpace)]
+#[derive(InitSpace, Debug)]
 pub struct NozzLaunchpadConfig {
     /// Admin authority - can update config
     pub authority: Pubkey,
