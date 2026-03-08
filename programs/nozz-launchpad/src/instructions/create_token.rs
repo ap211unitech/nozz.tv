@@ -2,13 +2,15 @@ use anchor_lang::prelude::*;
 
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{self, MintTo},
-    token_interface::{Mint, TokenAccount, TokenInterface},
+    token_interface::{
+        self, token_metadata_initialize, Mint, MintTo, TokenAccount, TokenInterface,
+        TokenMetadataInitialize,
+    },
 };
 
 use crate::{
-    utils::VIRTUAL_SOL_SEED, BondingCurve, BondingCurveVaultSOL, NozzLaunchpadConfig, TokenCreated,
-    CREATOR_TOKEN_MINT_DECIMALS,
+    error::NozzError, utils::VIRTUAL_SOL_SEED, BondingCurve, BondingCurveVaultSOL,
+    NozzLaunchpadConfig, TokenCreated, CREATOR_TOKEN_MINT_DECIMALS,
 };
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
@@ -24,24 +26,61 @@ pub fn handler(ctx: Context<CreateToken>, params: CreateTokenParams) -> Result<(
     let token_mint = ctx.accounts.mint.key();
     let clock = Clock::get()?;
 
-    let total_supply = config.initial_token_supply;
+    let total_supply = config.initial_token_supply; // Raw Units
     let bonding_curve_pct = config.bonding_curve_supply_pct as u64;
 
     // Virtual reserves seed the curve — (bonding_curve_pct)% allocation expressed in raw units
     // with decimals applied, used in x*y=k math
     let bonding_allocation = total_supply
         .checked_mul(bonding_curve_pct)
-        .unwrap()
+        .ok_or(NozzError::MathOverflow)?
         .checked_div(100)
-        .unwrap();
+        .ok_or(NozzError::MathOverflow)?;
+
+    // PDA signer seeds
+    let bonding_curve_seeds: &[&[u8]] = &[
+        BondingCurve::SEED,
+        token_mint.as_ref(),
+        &[ctx.bumps.bonding_curve],
+    ];
+    let signer_seeds = &[bonding_curve_seeds];
+
+    token_metadata_initialize(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            TokenMetadataInitialize {
+                program_id: ctx.accounts.token_program.to_account_info(),
+                mint: ctx.accounts.mint.to_account_info(),
+                metadata: ctx.accounts.mint.to_account_info(), // metadata = mint itself
+                mint_authority: ctx.accounts.bonding_curve.to_account_info(),
+                update_authority: ctx.accounts.bonding_curve.to_account_info(),
+            },
+            signer_seeds,
+        ),
+        params.token_name.clone(),
+        params.token_ticker.clone(),
+        params.token_uri.clone(),
+    )?;
+
+    // Mint entire supply to bonding curve token account
+    // 40% will be sold via the curve; 60% stays locked for DEX liquidity
+    token_interface::mint_to(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            MintTo {
+                mint: ctx.accounts.mint.to_account_info(),
+                to: ctx.accounts.bonding_curve_ata.to_account_info(),
+                authority: ctx.accounts.bonding_curve.to_account_info(),
+            },
+            signer_seeds,
+        ),
+        total_supply,
+    )?;
 
     ctx.accounts.bonding_curve.set_inner(BondingCurve {
         // Initialize bonding curve state
         mint: token_mint,
         creator: ctx.accounts.creator.key(),
-        name: params.token_name.clone(),
-        symbol: params.token_ticker.clone(),
-        uri: params.token_uri.clone(),
 
         // Virtual SOL seed bootstraps price — no real SOL deposited yet
         virtual_sol_reserves: VIRTUAL_SOL_SEED,
@@ -61,28 +100,6 @@ pub fn handler(ctx: Context<CreateToken>, params: CreateTokenParams) -> Result<(
         bump: ctx.bumps.bonding_curve,
         vault_bump: ctx.bumps.bonding_curve_vault,
     });
-
-    // Mint entire supply to bonding curve token account
-    // 40% will be sold via the curve; 60% stays locked for DEX liquidity
-    let bonding_curve_seeds: &[&[u8]] = &[
-        BondingCurve::SEED,
-        token_mint.as_ref(),
-        &[ctx.bumps.bonding_curve],
-    ];
-    let signer_seeds = &[bonding_curve_seeds];
-
-    token::mint_to(
-        CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
-            MintTo {
-                mint: ctx.accounts.mint.to_account_info(),
-                to: ctx.accounts.bonding_curve_ata.to_account_info(),
-                authority: ctx.accounts.bonding_curve.to_account_info(),
-            },
-            signer_seeds,
-        ),
-        total_supply,
-    )?;
 
     emit!(TokenCreated {
         mint: token_mint,
@@ -110,16 +127,25 @@ pub struct CreateToken<'info> {
     )]
     pub nozz_launchpad_config: Account<'info, NozzLaunchpadConfig>,
 
+    /// Token-2022 mint with MetadataPointer extension.
+    /// Anchor allocates the correct account size for the extension
+    /// and validates it as a proper mint via InterfaceAccount<Mint>.
+    /// The metadata pointer is set to the mint itself (self-referential),
+    /// so name/symbol/uri live inside the mint account — no separate
+    /// metadata account needed.
     #[account(
         init,
         payer = creator,
         mint::decimals = CREATOR_TOKEN_MINT_DECIMALS,
         mint::authority = bonding_curve,
         mint::freeze_authority = bonding_curve,
-        mint::token_program = token_program
+        mint::token_program = token_program,
+        extensions::metadata_pointer::authority = bonding_curve,
+        extensions::metadata_pointer::metadata_address = mint
     )]
     pub mint: InterfaceAccount<'info, Mint>,
 
+    /// Bonding curve state PDA
     #[account(
         init,
         payer = creator,

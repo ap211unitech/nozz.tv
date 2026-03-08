@@ -18,7 +18,7 @@ pub struct NozzLaunchpadConfig {
     /// Streamer fee in basis points earned on each trade (e.g., 75 = 0.75%)
     pub streamer_fee_bps: u16,
 
-    /// Total supply for each new token (default: 100_000_000) (without decimals)
+    /// Total supply for each new token (default: 100 million * (10 ** decimals)) (with decimals)
     pub initial_token_supply: u64,
 
     /// % of supply allocated to bonding curve (e.g., 40 = 40%)
@@ -52,18 +52,6 @@ pub struct BondingCurve {
 
     /// The streamer/creator who launched this token
     pub creator: Pubkey,
-
-    /// Token name
-    #[max_len(50)]
-    pub name: String,
-
-    /// Token symbol (ticker)
-    #[max_len(10)]
-    pub symbol: String,
-
-    /// URI pointing to token metadata (Arweave/IPFS)
-    #[max_len(200)]
-    pub uri: String,
 
     /// Virtual SOL reserves — includes the seeded virtual SOL for price bootstrapping.
     /// Starts at VIRTUAL_SOL_SEED (30 SOL) and grows with each buy.
