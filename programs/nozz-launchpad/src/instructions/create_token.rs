@@ -2,23 +2,23 @@ use anchor_lang::prelude::*;
 
 use anchor_spl::{
     associated_token::AssociatedToken,
+    token_2022::{mint_to, MintTo},
     token_interface::{
-        self, token_metadata_initialize, Mint, MintTo, TokenAccount, TokenInterface,
-        TokenMetadataInitialize,
+        token_metadata_initialize, Mint, TokenAccount, TokenInterface, TokenMetadataInitialize,
     },
 };
 
 use crate::{
-    error::NozzError, utils::VIRTUAL_SOL_SEED, BondingCurve, BondingCurveVaultSOL,
-    NozzLaunchpadConfig, TokenCreated, CREATOR_TOKEN_MINT_DECIMALS,
+    error::NozzError, utils::VIRTUAL_SOL_SEED, BondingCurve, NozzLaunchpadConfig, TokenCreated,
+    ANCHOR_DISCRIMINATOR, CREATOR_TOKEN_MINT_DECIMALS,
 };
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct CreateTokenParams {
-    token_name: String,
-    token_ticker: String,
-    token_description: String,
-    token_uri: String,
+    pub token_name: String,
+    pub token_ticker: String,
+    pub token_description: String,
+    pub token_uri: String,
 }
 
 pub fn handler(ctx: Context<CreateToken>, params: CreateTokenParams) -> Result<()> {
@@ -64,7 +64,7 @@ pub fn handler(ctx: Context<CreateToken>, params: CreateTokenParams) -> Result<(
 
     // Mint entire supply to bonding curve token account
     // 40% will be sold via the curve; 60% stays locked for DEX liquidity
-    token_interface::mint_to(
+    mint_to(
         CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             MintTo {
@@ -159,12 +159,12 @@ pub struct CreateToken<'info> {
     #[account(
         init,
         payer = creator,
-        space = 0,
+        space = (ANCHOR_DISCRIMINATOR as usize) + BondingCurve::INIT_SPACE,
         seeds = [BondingCurve::VAULT_SEED, mint.key().as_ref()],
         bump
     )]
     /// CHECK: PDA used as a pure SOL vault, no data needed
-    pub bonding_curve_vault: Account<'info, BondingCurveVaultSOL>,
+    pub bonding_curve_vault: UncheckedAccount<'info>,
 
     #[account(
         init_if_needed,
@@ -178,4 +178,5 @@ pub struct CreateToken<'info> {
     pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
 }

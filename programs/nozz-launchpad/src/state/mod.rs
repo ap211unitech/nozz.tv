@@ -40,9 +40,6 @@ impl NozzLaunchpadConfig {
     pub const LEN: usize = (ANCHOR_DISCRIMINATOR as usize) + NozzLaunchpadConfig::INIT_SPACE;
 }
 
-#[account]
-pub struct BondingCurveVaultSOL;
-
 /// Per-token bonding curve state
 #[account]
 #[derive(InitSpace)]
