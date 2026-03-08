@@ -38,7 +38,7 @@ pub fn handler(ctx: Context<InitializeConfig>, params: InitializeConfigParams) -
     let total_supply = params
         .initial_token_supply
         .checked_mul(token_decimals_factor)
-        .unwrap();
+        .ok_or(NozzError::MathOverflow)?;
 
     let config = &mut ctx.accounts.nozz_launchpad_config;
     config.authority = ctx.accounts.authority.key();

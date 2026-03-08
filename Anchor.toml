@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-nozz-launchpad = "6zp1FgL5FShDjJoh8hoBztncuYWvSANvPHUZFceiVFsy"
+nozz-launchpad = "5pAxXXdL7NzFKqpp6TnuxBojeFuKEijX6amRvY4G8dvA"
 
 [registry]
 url = "https://api.apr.dev"

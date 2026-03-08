@@ -12,7 +12,7 @@ pub use events::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("6zp1FgL5FShDjJoh8hoBztncuYWvSANvPHUZFceiVFsy");
+declare_id!("5pAxXXdL7NzFKqpp6TnuxBojeFuKEijX6amRvY4G8dvA");
 
 #[program]
 pub mod nozz_launchpad {

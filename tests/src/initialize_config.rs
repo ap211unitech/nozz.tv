@@ -15,7 +15,7 @@ use nozz_launchpad::{
 
 #[test]
 fn test_initialize() {
-    let program_id = "6zp1FgL5FShDjJoh8hoBztncuYWvSANvPHUZFceiVFsy";
+    let program_id = "5pAxXXdL7NzFKqpp6TnuxBojeFuKEijX6amRvY4G8dvA";
     let anchor_wallet = std::env::var("ANCHOR_WALLET").unwrap();
     let payer = read_keypair_file(&anchor_wallet).unwrap();
     let fee_recipient = Pubkey::new_unique();
@@ -31,7 +31,7 @@ fn test_initialize() {
         fee_recipient,
         platform_fee_bps: 25,
         streamer_fee_bps: 75,
-        initial_token_supply: 1_000_000_000_000_000,
+        initial_token_supply: 100_000_000, // without decimals
         graduation_sol_threshold: 50_000_000_000,
         bonding_curve_supply_pct: 40,
     };

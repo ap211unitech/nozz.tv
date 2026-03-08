@@ -2,6 +2,9 @@ use anchor_lang::prelude::*;
 
 #[error_code]
 pub enum NozzError {
+    #[msg("Math overflow")]
+    MathOverflow,
+
     #[msg("Amount must be greater than zero")]
     ZeroAmount,
 
