@@ -1,7 +1,7 @@
 use anchor_client::solana_sdk::signer::Signer;
 use nozz_launchpad::state as nozz_state;
 
-use crate::utils::{initialize_config, setup_environment, Environment, InitializeConfigResponse};
+use crate::utils::{send_initialize_config, setup_environment, Environment, InitializeConfigResponse};
 
 #[test]
 fn test_initialize_config() {
@@ -9,12 +9,14 @@ fn test_initialize_config() {
         client: _,
         program,
         payer,
+        config_pda,
+        mint_pubkey: _,
+        bonding_curve_pda: _,
+        bonding_curve_vault_pda: _,
+        bonding_curve_ata: _,
     } = setup_environment();
 
-    let InitializeConfigResponse {
-        fee_recipient,
-        config_pda,
-    } = initialize_config();
+    let InitializeConfigResponse { fee_recipient } = send_initialize_config();
 
     let nozz_config_account: nozz_state::NozzLaunchpadConfig = program.account(config_pda).unwrap();
 

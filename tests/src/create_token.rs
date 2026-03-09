@@ -1,87 +1,46 @@
 use anchor_client::{
     anchor_lang::{prelude::system_program, solana_program},
-    solana_sdk::{pubkey::Pubkey, signer::Signer},
+    solana_sdk::signer::Signer,
 };
 use nozz_launchpad::{
-    accounts as nozz_accounts, instruction as nozz_instructions,
-    state::{self as nozz_state, BondingCurve},
+    accounts as nozz_accounts, instruction as nozz_instructions, state as nozz_state,
     CreateTokenParams,
 };
-use spl_associated_token_account::get_associated_token_address_with_program_id;
 use spl_token_2022::{
     extension::{BaseStateWithExtensions, StateWithExtensions},
     state::Mint,
 };
 use spl_token_metadata_interface::state::TokenMetadata;
 
-use crate::utils::{initialize_config, setup_environment, Environment, InitializeConfigResponse};
+use crate::utils::{send_create_token, send_initialize_config, setup_environment, Environment};
+
+fn default_params() -> CreateTokenParams {
+    CreateTokenParams {
+        token_name: "NozzStream1".to_string(),
+        token_ticker: "NST1".to_string(),
+        token_uri: "https://raw.githubusercontent.com/solana-developers/opos-asset/main/assets/DeveloperPortal/metadata.json".to_string(),
+    }
+}
 
 #[test]
-fn test_create_token() {
+fn test_create_token_success() {
     let Environment {
         client: _,
         program,
         payer,
-    } = setup_environment();
-    let program_id = program.id();
-
-    let InitializeConfigResponse {
-        fee_recipient: _,
         config_pda,
-    } = initialize_config();
+        mint_pubkey,
+        bonding_curve_pda,
+        bonding_curve_vault_pda: _,
+        bonding_curve_ata,
+    } = setup_environment();
+
+    send_initialize_config();
 
     // Fetch config so we can compute expected values from it
     let config: nozz_state::NozzLaunchpadConfig = program.account(config_pda).unwrap();
 
-    // Fresh mint keypair — each test run creates a new token
-    let (mint_pubkey, _) = Pubkey::find_program_address(
-        &[
-            BondingCurve::CREATOR_TOKEN_MINT_SEED,
-            payer.pubkey().as_ref(),
-        ],
-        &program_id,
-    );
-
-    println!("mint_pubkey: {:#?}", config_pda);
-
-    let (bonding_curve_pda, _) =
-        Pubkey::find_program_address(&[BondingCurve::SEED, mint_pubkey.as_ref()], &program_id);
-
-    let (bonding_curve_vault_pda, _) = Pubkey::find_program_address(
-        &[BondingCurve::VAULT_SEED, mint_pubkey.as_ref()],
-        &program_id,
-    );
-
-    let bonding_curve_ata = get_associated_token_address_with_program_id(
-        &bonding_curve_pda.to_bytes().into(),
-        &mint_pubkey.to_bytes().into(),
-        &spl_token_2022::id(),
-    );
-
-    // Send instruction
-    let params = CreateTokenParams {
-        token_name: "NozzStream1".to_string(),
-        token_ticker: "NST1".to_string(),
-        token_uri: "https://raw.githubusercontent.com/solana-developers/opos-asset/main/assets/DeveloperPortal/metadata.json".to_string(),
-    };
-
-    program
-        .request()
-        .accounts(nozz_accounts::CreateToken {
-            creator: payer.pubkey(),
-            nozz_launchpad_config: config_pda,
-            mint: mint_pubkey,
-            bonding_curve: bonding_curve_pda,
-            bonding_curve_vault: bonding_curve_vault_pda,
-            bonding_curve_ata: bonding_curve_ata.to_bytes().into(),
-            token_program: spl_token_2022::id().to_bytes().into(),
-            associated_token_program: spl_associated_token_account::id().to_bytes().into(),
-            system_program: system_program::ID,
-            rent: solana_program::sysvar::rent::ID,
-        })
-        .args(nozz_instructions::CreateToken { params })
-        .send()
-        .unwrap();
+    send_create_token(default_params());
 
     // Assert BondingCurve state
     let bc: nozz_state::BondingCurve = program.account(bonding_curve_pda).unwrap();
@@ -113,8 +72,6 @@ fn test_create_token() {
     // Assert mint was created with Token-2022
     let mint_account = program.rpc().get_account(&mint_pubkey).unwrap();
 
-    println!("Mint Account: {:#?}", mint_account);
-
     // Owner must be the Token-2022 program, not legacy spl-token
     assert_eq!(
         mint_account.owner.to_string(),
@@ -128,9 +85,11 @@ fn test_create_token() {
         .get_variable_len_extension::<TokenMetadata>()
         .unwrap();
 
-    assert_eq!(metadata.name, "NozzStream1");
-    assert_eq!(metadata.symbol, "NST1");
-    assert_eq!(metadata.uri, "https://raw.githubusercontent.com/solana-developers/opos-asset/main/assets/DeveloperPortal/metadata.json");
+    let params = default_params();
+
+    assert_eq!(metadata.name, params.token_name);
+    assert_eq!(metadata.symbol, params.token_ticker);
+    assert_eq!(metadata.uri, params.token_uri);
     // update_authority should be the bonding_curve PDA
     assert_eq!(
         metadata.update_authority.0,
@@ -146,5 +105,58 @@ fn test_create_token() {
     assert_eq!(
         ata_balance.amount.parse::<u64>().unwrap(),
         config.initial_token_supply,
+    );
+}
+
+#[test]
+fn test_create_token_duplicate_fails() {
+    let Environment {
+        client: _,
+        program,
+        payer,
+        config_pda,
+        mint_pubkey,
+        bonding_curve_pda,
+        bonding_curve_vault_pda,
+        bonding_curve_ata,
+    } = setup_environment();
+
+    send_initialize_config();
+    send_create_token(default_params());
+
+    // Should fail when trying to create a second token — mint PDA already exists
+    let result = program
+        .request()
+        .accounts(nozz_accounts::CreateToken {
+            creator: payer.pubkey(),
+            nozz_launchpad_config: config_pda,
+            mint: mint_pubkey,
+            bonding_curve: bonding_curve_pda,
+            bonding_curve_vault: bonding_curve_vault_pda,
+            bonding_curve_ata: bonding_curve_ata.to_bytes().into(),
+            token_program: spl_token_2022::id().to_bytes().into(),
+            associated_token_program: spl_associated_token_account::id().to_bytes().into(),
+            system_program: system_program::ID,
+            rent: solana_program::sysvar::rent::ID,
+        })
+        .args(nozz_instructions::CreateToken {
+            params: CreateTokenParams {
+                token_name: "NozzStream2".to_string(),
+                token_ticker: "NST2".to_string(),
+                token_uri: "https://arweave.net/test-metadata-hash".to_string(),
+            },
+        })
+        .send();
+
+    assert!(
+        result.is_err(),
+        "Expected second token creation to fail but it succeeded"
+    );
+
+    let err_str = result.unwrap_err().to_string();
+    assert!(
+        err_str.contains("already in use") || err_str.contains("custom program error: 0x0"),
+        "Expected AccountAlreadyInitialized error, got: {}",
+        err_str
     );
 }

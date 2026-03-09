@@ -11,8 +11,6 @@ doctest = false
 [dependencies]
 anchor-client = "0.32.1"
 nozz-launchpad = { version = "0.1.0", path = "../programs/nozz-launchpad" }
-
-[dev-dependencies]
 spl-token-2022 = "10.0.0"
 spl-token-metadata-interface = "0.8.0"
 spl-associated-token-account = "8.0.0"
