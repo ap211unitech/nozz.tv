@@ -71,7 +71,7 @@ pub fn initialize_config() -> InitializeConfigResponse {
         bonding_curve_supply_pct: 40,
     };
 
-    program
+    let response = program
         .request()
         .accounts(nozz_accounts::InitializeConfig {
             authority: payer.pubkey(),
@@ -79,11 +79,13 @@ pub fn initialize_config() -> InitializeConfigResponse {
             system_program: system_program::ID,
         })
         .args(nozz_instructions::InitializeConfig { params })
-        .send()
-        .unwrap();
+        .send();
 
-    InitializeConfigResponse {
-        fee_recipient,
-        config_pda,
+    // Either config initialize or fail (if already initialize), always return response
+    match response {
+        _ => InitializeConfigResponse {
+            fee_recipient,
+            config_pda,
+        },
     }
 }

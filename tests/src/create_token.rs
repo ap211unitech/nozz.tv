@@ -1,11 +1,11 @@
 use anchor_client::{
     anchor_lang::{prelude::system_program, solana_program},
-    solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer},
+    solana_sdk::{pubkey::Pubkey, signer::Signer},
 };
 use nozz_launchpad::{
     accounts as nozz_accounts, instruction as nozz_instructions,
     state::{self as nozz_state, BondingCurve},
-    CreateTokenParams, NozzLaunchpadConfig,
+    CreateTokenParams,
 };
 use spl_associated_token_account::get_associated_token_address_with_program_id;
 use spl_token_2022::{
@@ -14,7 +14,7 @@ use spl_token_2022::{
 };
 use spl_token_metadata_interface::state::TokenMetadata;
 
-use crate::utils::{setup_environment, Environment};
+use crate::utils::{initialize_config, setup_environment, Environment, InitializeConfigResponse};
 
 #[test]
 fn test_create_token() {
@@ -25,15 +25,22 @@ fn test_create_token() {
     } = setup_environment();
     let program_id = program.id();
 
-    // Derive config PDA
-    let (config_pda, _) = Pubkey::find_program_address(&[NozzLaunchpadConfig::SEED], &program_id);
+    let InitializeConfigResponse {
+        fee_recipient: _,
+        config_pda,
+    } = initialize_config();
 
     // Fetch config so we can compute expected values from it
     let config: nozz_state::NozzLaunchpadConfig = program.account(config_pda).unwrap();
 
     // Fresh mint keypair — each test run creates a new token
-    let mint_keypair = Keypair::new();
-    let mint_pubkey = mint_keypair.pubkey();
+    let (mint_pubkey, _) = Pubkey::find_program_address(
+        &[
+            BondingCurve::CREATOR_TOKEN_MINT_SEED,
+            payer.pubkey().as_ref(),
+        ],
+        &program_id,
+    );
 
     println!("mint_pubkey: {:#?}", config_pda);
 
@@ -55,8 +62,7 @@ fn test_create_token() {
     let params = CreateTokenParams {
         token_name: "NozzStream1".to_string(),
         token_ticker: "NST1".to_string(),
-        token_description: "First nozz.tv streamer token".to_string(),
-        token_uri: "https://arweave.net/test-metadata-hash".to_string(),
+        token_uri: "https://raw.githubusercontent.com/solana-developers/opos-asset/main/assets/DeveloperPortal/metadata.json".to_string(),
     };
 
     program
@@ -74,7 +80,6 @@ fn test_create_token() {
             rent: solana_program::sysvar::rent::ID,
         })
         .args(nozz_instructions::CreateToken { params })
-        .signer(&mint_keypair)
         .send()
         .unwrap();
 
@@ -108,7 +113,7 @@ fn test_create_token() {
     // Assert mint was created with Token-2022
     let mint_account = program.rpc().get_account(&mint_pubkey).unwrap();
 
-    println!("{:#?}", mint_account);
+    println!("Mint Account: {:#?}", mint_account);
 
     // Owner must be the Token-2022 program, not legacy spl-token
     assert_eq!(
@@ -125,7 +130,7 @@ fn test_create_token() {
 
     assert_eq!(metadata.name, "NozzStream1");
     assert_eq!(metadata.symbol, "NST1");
-    assert_eq!(metadata.uri, "https://arweave.net/test-metadata-hash");
+    assert_eq!(metadata.uri, "https://raw.githubusercontent.com/solana-developers/opos-asset/main/assets/DeveloperPortal/metadata.json");
     // update_authority should be the bonding_curve PDA
     assert_eq!(
         metadata.update_authority.0,

@@ -1,10 +1,11 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, system_program};
 
 use anchor_spl::{
     associated_token::AssociatedToken,
     token_2022::{mint_to, MintTo},
     token_interface::{
-        token_metadata_initialize, Mint, TokenAccount, TokenInterface, TokenMetadataInitialize,
+        spl_token_metadata_interface::state::TokenMetadata, token_metadata_initialize, Mint,
+        TokenAccount, TokenInterface, TokenMetadataInitialize,
     },
 };
 
@@ -17,7 +18,6 @@ use crate::{
 pub struct CreateTokenParams {
     pub token_name: String,
     pub token_ticker: String,
-    pub token_description: String,
     pub token_uri: String,
 }
 
@@ -45,6 +45,42 @@ pub fn handler(ctx: Context<CreateToken>, params: CreateTokenParams) -> Result<(
     ];
     let signer_seeds = &[bonding_curve_seeds];
 
+    let metadata = TokenMetadata {
+        update_authority: Some(ctx.accounts.bonding_curve.key()).try_into().unwrap(),
+        mint: token_mint,
+        name: params.token_name.clone(),
+        symbol: params.token_ticker.clone(),
+        uri: params.token_uri.clone(),
+        additional_metadata: vec![],
+    };
+
+    // tlv_size_of() = TlvStateBorrowed::get_base_len() + get_packed_len()
+    // i.e. the exact number of bytes Token-2022 will append to the mint account
+    let metadata_extension_size = metadata
+        .tlv_size_of()
+        .map_err(|_| NozzError::MathOverflow)?;
+
+    let mint_account = ctx.accounts.mint.to_account_info();
+    let new_size = mint_account.data_len() + metadata_extension_size;
+    let rent = Rent::get()?;
+    let new_minimum = rent.minimum_balance(new_size);
+    let current_lamports = mint_account.lamports();
+
+    if new_minimum > current_lamports {
+        let diff = new_minimum - current_lamports;
+        system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: ctx.accounts.creator.to_account_info(),
+                    to: mint_account.clone(),
+                },
+            ),
+            diff,
+        )?;
+    }
+
+    // Metadata Initialize
     token_metadata_initialize(
         CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
@@ -141,7 +177,9 @@ pub struct CreateToken<'info> {
         mint::freeze_authority = bonding_curve,
         mint::token_program = token_program,
         extensions::metadata_pointer::authority = bonding_curve,
-        extensions::metadata_pointer::metadata_address = mint
+        extensions::metadata_pointer::metadata_address = mint,
+        seeds = [BondingCurve::CREATOR_TOKEN_MINT_SEED, creator.key().as_ref()],
+        bump
     )]
     pub mint: InterfaceAccount<'info, Mint>,
 
@@ -159,11 +197,11 @@ pub struct CreateToken<'info> {
     #[account(
         init,
         payer = creator,
-        space = (ANCHOR_DISCRIMINATOR as usize) + BondingCurve::INIT_SPACE,
+        space = ANCHOR_DISCRIMINATOR as usize,
         seeds = [BondingCurve::VAULT_SEED, mint.key().as_ref()],
         bump
     )]
-    /// CHECK: PDA used as a pure SOL vault, no data needed
+    /// CHECK: PDA used as a pure SOL vault
     pub bonding_curve_vault: UncheckedAccount<'info>,
 
     #[account(

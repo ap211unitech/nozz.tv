@@ -98,6 +98,7 @@ pub struct BondingCurve {
 }
 
 impl BondingCurve {
+    pub const CREATOR_TOKEN_MINT_SEED: &'static [u8] = b"creator_token_mint";
     pub const SEED: &'static [u8] = b"bonding_curve";
     pub const VAULT_SEED: &'static [u8] = b"bonding_curve_vault";
     pub const LEN: usize = (ANCHOR_DISCRIMINATOR as usize) + BondingCurve::INIT_SPACE;
