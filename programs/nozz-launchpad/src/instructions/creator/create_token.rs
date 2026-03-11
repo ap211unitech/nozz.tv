@@ -29,7 +29,11 @@ pub fn create_token(ctx: Context<CreateToken>, params: CreateTokenParams) -> Res
     let total_supply = config.initial_token_supply; // Raw Units
     let bonding_curve_pct = config.bonding_curve_supply_pct as u64;
 
-    config.token_count = config.token_count + 1;
+    // Only increment token_count
+    config.token_count = config
+        .token_count
+        .checked_add(1)
+        .ok_or(NozzError::MathOverflow)?;
 
     // Virtual reserves seed the curve — (bonding_curve_pct)% allocation expressed in raw units
     // with decimals applied, used in x*y=k math
@@ -160,8 +164,9 @@ pub struct CreateToken<'info> {
     pub creator: Signer<'info>,
 
     #[account(
+        mut,
         seeds = [NozzLaunchpadConfig::SEED],
-        bump
+        bump = nozz_launchpad_config.bump
     )]
     pub nozz_launchpad_config: Account<'info, NozzLaunchpadConfig>,
 

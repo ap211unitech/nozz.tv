@@ -62,7 +62,7 @@ pub struct UpdateConfig<'info> {
     #[account(
         mut,
         seeds = [NozzLaunchpadConfig::SEED],
-        bump
+        bump = nozz_launchpad_config.bump
     )]
     pub nozz_launchpad_config: Account<'info, NozzLaunchpadConfig>,
 

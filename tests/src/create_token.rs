@@ -37,10 +37,10 @@ fn test_create_token_success() {
 
     send_initialize_config();
 
+    send_create_token(default_params());
+
     // Fetch config so we can compute expected values from it
     let config: nozz_state::NozzLaunchpadConfig = program.account(config_pda).unwrap();
-
-    send_create_token(default_params());
 
     // Assert BondingCurve state
     let bc: nozz_state::BondingCurve = program.account(bonding_curve_pda).unwrap();
@@ -52,6 +52,7 @@ fn test_create_token_success() {
         .checked_div(100)
         .unwrap();
 
+    assert_eq!(config.token_count, 1);
     assert_eq!(bc.mint, mint_pubkey);
     assert_eq!(bc.creator, payer.pubkey());
     assert_eq!(bc.total_supply, config.initial_token_supply);
