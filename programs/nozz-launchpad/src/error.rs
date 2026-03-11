@@ -2,6 +2,9 @@ use anchor_lang::prelude::*;
 
 #[error_code]
 pub enum NozzError {
+    #[msg("You are not authorized to perform this action")]
+    UnAuthorized,
+
     #[msg("Math overflow")]
     MathOverflow,
 

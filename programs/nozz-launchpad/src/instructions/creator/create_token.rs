@@ -22,12 +22,14 @@ pub struct CreateTokenParams {
 }
 
 pub fn create_token(ctx: Context<CreateToken>, params: CreateTokenParams) -> Result<()> {
-    let config = &ctx.accounts.nozz_launchpad_config;
+    let config = &mut ctx.accounts.nozz_launchpad_config;
     let token_mint = ctx.accounts.mint.key();
     let clock = Clock::get()?;
 
     let total_supply = config.initial_token_supply; // Raw Units
     let bonding_curve_pct = config.bonding_curve_supply_pct as u64;
+
+    config.token_count = config.token_count + 1;
 
     // Virtual reserves seed the curve — (bonding_curve_pct)% allocation expressed in raw units
     // with decimals applied, used in x*y=k math

@@ -24,11 +24,16 @@ pub mod nozz_launchpad {
         ctx: Context<InitializeConfig>,
         params: InitializeConfigParams,
     ) -> Result<()> {
-        initialize_config::initialize_config(ctx, params)
+        instructions::initialize_config(ctx, params)
+    }
+
+    /// Update the global platform config (admin only)
+    pub fn update_config(ctx: Context<UpdateConfig>, params: UpdateConfigParams) -> Result<()> {
+        instructions::update_config(ctx, params)
     }
 
     /// Create a new streamer token with bonding curve
     pub fn create_token(ctx: Context<CreateToken>, params: CreateTokenParams) -> Result<()> {
-        create_token::create_token(ctx, params)
+        instructions::create_token(ctx, params)
     }
 }
