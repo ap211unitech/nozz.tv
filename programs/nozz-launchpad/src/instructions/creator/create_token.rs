@@ -21,7 +21,7 @@ pub struct CreateTokenParams {
     pub token_uri: String,
 }
 
-pub fn handler(ctx: Context<CreateToken>, params: CreateTokenParams) -> Result<()> {
+pub fn create_token(ctx: Context<CreateToken>, params: CreateTokenParams) -> Result<()> {
     let config = &ctx.accounts.nozz_launchpad_config;
     let token_mint = ctx.accounts.mint.key();
     let clock = Clock::get()?;

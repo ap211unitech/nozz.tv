@@ -10,7 +10,7 @@ pub struct NozzLaunchpadConfig {
     pub authority: Pubkey,
 
     /// Treasury wallet that collects platform fees
-    pub fee_recipient: Pubkey,
+    pub treasury: Pubkey,
 
     /// Platform fee in basis points (e.g., 25 = 0.25%)
     pub platform_fee_bps: u16,

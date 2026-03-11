@@ -5,7 +5,7 @@ use crate::{error::NozzError, state::NozzLaunchpadConfig, CREATOR_TOKEN_MINT_DEC
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct InitializeConfigParams {
     /// Treasury that receives platform fees
-    pub fee_recipient: Pubkey,
+    pub treasury: Pubkey,
 
     /// Platform fee bps (e.g. 25 = 0.25%)
     pub platform_fee_bps: u16,
@@ -25,7 +25,10 @@ pub struct InitializeConfigParams {
     pub bonding_curve_supply_pct: u8,
 }
 
-pub fn handler(ctx: Context<InitializeConfig>, params: InitializeConfigParams) -> Result<()> {
+pub fn initialize_config(
+    ctx: Context<InitializeConfig>,
+    params: InitializeConfigParams,
+) -> Result<()> {
     require!(params.platform_fee_bps <= 1000, NozzError::InvalidFee);
     require!(params.streamer_fee_bps <= 1000, NozzError::InvalidFee);
     require!(
@@ -42,7 +45,7 @@ pub fn handler(ctx: Context<InitializeConfig>, params: InitializeConfigParams) -
 
     let config = &mut ctx.accounts.nozz_launchpad_config;
     config.authority = ctx.accounts.authority.key();
-    config.fee_recipient = params.fee_recipient;
+    config.treasury = params.treasury;
     config.platform_fee_bps = params.platform_fee_bps;
     config.streamer_fee_bps = params.streamer_fee_bps;
     config.graduation_sol_threshold = params.graduation_sol_threshold;

@@ -1,5 +1,5 @@
-pub mod initialize_config;
-pub mod create_token;
+pub mod admin;
+pub mod creator;
 
-pub use initialize_config::*;
-pub use create_token::*;
+pub use admin::*;
+pub use creator::*;

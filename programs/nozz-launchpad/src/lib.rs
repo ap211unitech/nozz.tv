@@ -9,6 +9,7 @@ use anchor_lang::prelude::*;
 
 pub use constants::*;
 pub use events::*;
+#[allow(ambiguous_glob_reexports)]
 pub use instructions::*;
 pub use state::*;
 
@@ -23,11 +24,11 @@ pub mod nozz_launchpad {
         ctx: Context<InitializeConfig>,
         params: InitializeConfigParams,
     ) -> Result<()> {
-        initialize_config::handler(ctx, params)
+        initialize_config::initialize_config(ctx, params)
     }
 
     /// Create a new streamer token with bonding curve
     pub fn create_token(ctx: Context<CreateToken>, params: CreateTokenParams) -> Result<()> {
-        create_token::handler(ctx, params)
+        create_token::create_token(ctx, params)
     }
 }

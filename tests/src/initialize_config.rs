@@ -1,7 +1,9 @@
 use anchor_client::solana_sdk::signer::Signer;
 use nozz_launchpad::state as nozz_state;
 
-use crate::utils::{send_initialize_config, setup_environment, Environment, InitializeConfigResponse};
+use crate::utils::{
+    send_initialize_config, setup_environment, Environment, InitializeConfigResponse,
+};
 
 #[test]
 fn test_initialize_config() {
@@ -16,12 +18,12 @@ fn test_initialize_config() {
         bonding_curve_ata: _,
     } = setup_environment();
 
-    let InitializeConfigResponse { fee_recipient } = send_initialize_config();
+    let InitializeConfigResponse { treasury } = send_initialize_config();
 
     let nozz_config_account: nozz_state::NozzLaunchpadConfig = program.account(config_pda).unwrap();
 
     assert_eq!(nozz_config_account.authority, payer.pubkey());
-    assert_eq!(nozz_config_account.fee_recipient, fee_recipient);
+    assert_eq!(nozz_config_account.treasury, treasury);
     assert_eq!(nozz_config_account.platform_fee_bps, 25);
     assert_eq!(nozz_config_account.streamer_fee_bps, 75);
     assert_eq!(nozz_config_account.bonding_curve_supply_pct, 40);

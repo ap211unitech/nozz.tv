@@ -82,11 +82,11 @@ pub fn setup_environment() -> Environment {
 }
 
 pub struct InitializeConfigResponse {
-    pub fee_recipient: Pubkey,
+    pub treasury: Pubkey,
 }
 
 pub fn send_initialize_config() -> InitializeConfigResponse {
-    let fee_recipient = Pubkey::new_unique();
+    let treasury = Pubkey::new_unique();
 
     let Environment {
         client: _,
@@ -100,7 +100,7 @@ pub fn send_initialize_config() -> InitializeConfigResponse {
     } = setup_environment();
 
     let params = InitializeConfigParams {
-        fee_recipient,
+        treasury,
         platform_fee_bps: 25,
         streamer_fee_bps: 75,
         initial_token_supply: 100_000_000, // without decimals
@@ -120,7 +120,7 @@ pub fn send_initialize_config() -> InitializeConfigResponse {
 
     // Either config initialize or fail (if already initialize), always return response
     match response {
-        _ => InitializeConfigResponse { fee_recipient },
+        _ => InitializeConfigResponse { treasury },
     }
 }
 
