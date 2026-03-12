@@ -85,7 +85,7 @@ pub struct BondingCurve {
     pub migrated: bool,
 
     /// Streamer fees accumulated (lamports), claimable anytime via claim_fees
-    pub pending_creator_fees: u64,
+    pub claimable_creator_fees: u64,
 
     /// Unix timestamp of creation
     pub created_at: i64,

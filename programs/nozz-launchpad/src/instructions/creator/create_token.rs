@@ -136,7 +136,7 @@ pub fn create_token(ctx: Context<CreateToken>, params: CreateTokenParams) -> Res
         graduation_sol_threshold: config.graduation_sol_threshold,
         complete: false,
         migrated: false,
-        pending_creator_fees: 0,
+        claimable_creator_fees: 0,
         created_at: clock.unix_timestamp,
         total_volume: 0,
         bump: ctx.bumps.bonding_curve,
