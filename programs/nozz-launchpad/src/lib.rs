@@ -36,4 +36,9 @@ pub mod nozz_launchpad {
     pub fn create_token(ctx: Context<CreateToken>, params: CreateTokenParams) -> Result<()> {
         instructions::create_token(ctx, params)
     }
+
+    /// Buy any streamer token with bonding curve
+    pub fn buy_token(ctx: Context<BuyToken>, amount: u64) -> Result<()> {
+        instructions::buy_token(ctx, amount)
+    }
 }
