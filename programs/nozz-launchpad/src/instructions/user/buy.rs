@@ -126,10 +126,7 @@ pub fn buy_token(ctx: Context<BuyToken>, sol_amount: u64, min_tokens_out: u64) -
         } else {
             "all bonding curve tokens sold"
         };
-        msg!(
-            "🎓 Bonding curve complete ({})! Call graduate_to_dex.",
-            reason
-        );
+        msg!("Bonding curve complete ({})! Call graduate_to_dex.", reason);
     }
 
     emit!(TradeEvent {
@@ -144,14 +141,6 @@ pub fn buy_token(ctx: Context<BuyToken>, sol_amount: u64, min_tokens_out: u64) -
         virtual_token_reserves: bonding_curve.virtual_token_reserves,
         timestamp: clock.unix_timestamp,
     });
-
-    msg!(
-        "Buy: {} lamports → {} tokens | fees: {} platform + {} creator",
-        sol_amount,
-        tokens_out,
-        platform_fee,
-        creator_fee
-    );
 
     Ok(())
 }

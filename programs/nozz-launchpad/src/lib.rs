@@ -41,4 +41,9 @@ pub mod nozz_launchpad {
     pub fn buy_token(ctx: Context<BuyToken>, sol_amount: u64, min_tokens_out: u64) -> Result<()> {
         instructions::buy_token(ctx, sol_amount, min_tokens_out)
     }
+
+    /// Sell any streamer token with bonding curve
+    pub fn sell_token(ctx: Context<SellToken>, token_amount: u64, min_sol_out: u64) -> Result<()> {
+        instructions::sell_token(ctx, token_amount, min_sol_out)
+    }
 }
