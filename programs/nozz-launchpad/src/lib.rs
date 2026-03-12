@@ -51,4 +51,9 @@ pub mod nozz_launchpad {
     pub fn claim_fees(ctx: Context<ClaimFees>) -> Result<()> {
         instructions::claim_fees(ctx)
     }
+
+    /// Graduate token to DEX once bonding curve is complete (permissionless)
+    pub fn graduate_to_dex(ctx: Context<GraduateToDex>) -> Result<()> {
+        instructions::graduate_to_dex(ctx)
+    }
 }
