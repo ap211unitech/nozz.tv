@@ -46,4 +46,9 @@ pub mod nozz_launchpad {
     pub fn sell_token(ctx: Context<SellToken>, token_amount: u64, min_sol_out: u64) -> Result<()> {
         instructions::sell_token(ctx, token_amount, min_sol_out)
     }
+
+    /// Claim streamer fees accumulated
+    pub fn claim_fees(ctx: Context<ClaimFees>) -> Result<()> {
+        instructions::claim_fees(ctx)
+    }
 }
