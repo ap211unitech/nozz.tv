@@ -64,7 +64,7 @@ fn test_create_token_success() {
         nozz_launchpad::utils::VIRTUAL_SOL_SEED
     );
     assert_eq!(bc.real_sol_reserves, 0);
-    assert_eq!(bc.pending_creator_fees, 0);
+    assert_eq!(bc.claimable_creator_fees, 0);
     assert_eq!(bc.total_volume, 0);
     assert_eq!(bc.graduation_sol_threshold, config.graduation_sol_threshold);
     assert!(!bc.complete);
