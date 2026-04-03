@@ -21,8 +21,18 @@ pub struct InitializeConfigParams {
     /// Recommended: 85_000_000_000 (85 SOL)
     pub graduation_sol_threshold: u64,
 
-    /// % of supply for bonding curve trading (rest goes to DEX liquidity)
+    /// % of supply for bonding curve trading
     pub bonding_curve_supply_pct: u8,
+
+    /// % of supply allocated to staking reward pool
+    pub staking_supply_pct: u8,
+
+    /// % for DEX liquidity on graduation
+    /// Must satisfy: bonding_curve + staking + dex == 100
+    pub dex_supply_pct: u8,
+
+    /// Reward emission duration in seconds (default: 157_680_000 = 5 years)
+    pub staking_duration_seconds: u64,
 }
 
 pub fn initialize_config(
@@ -34,6 +44,10 @@ pub fn initialize_config(
     require!(
         params.bonding_curve_supply_pct > 0 && params.bonding_curve_supply_pct <= 100,
         NozzError::InvalidFee
+    );
+    require!(
+        params.bonding_curve_supply_pct + params.staking_supply_pct + params.dex_supply_pct == 100,
+        NozzError::InvalidPctDistribution
     );
     require!(params.graduation_sol_threshold > 0, NozzError::ZeroAmount);
 
@@ -51,6 +65,9 @@ pub fn initialize_config(
     config.graduation_sol_threshold = params.graduation_sol_threshold;
     config.initial_token_supply = total_supply;
     config.bonding_curve_supply_pct = params.bonding_curve_supply_pct;
+    config.staking_supply_pct = params.staking_supply_pct;
+    config.dex_supply_pct = params.dex_supply_pct;
+    config.staking_duration_seconds = params.staking_duration_seconds;
     config.token_count = 0;
     config.bump = ctx.bumps.nozz_launchpad_config;
 

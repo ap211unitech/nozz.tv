@@ -21,8 +21,18 @@ pub struct NozzLaunchpadConfig {
     /// Total supply for each new token (default: 100 million * (10 ** decimals)) (with decimals)
     pub initial_token_supply: u64,
 
-    /// % of supply allocated to bonding curve (e.g., 40 = 40%)
+    /// % of supply allocated to bonding curve (e.g., 30 = 30%)
     pub bonding_curve_supply_pct: u8,
+
+    /// % of supply allocated to staking reward pool (e.g., 40 = 40%)
+    pub staking_supply_pct: u8,
+
+    /// % for DEX liquidity on graduation (e.g. 30)
+    /// Must satisfy: bonding_curve + staking + dex == 100
+    pub dex_supply_pct: u8,
+
+    /// Reward emission duration in seconds (default: 157_680_000 = 5 years)
+    pub staking_duration_seconds: u64,
 
     /// SOL threshold that triggers graduation (lamports).
     /// Graduation fires when EITHER this is hit OR all bonding curve supply (40%) tokens sell out.
