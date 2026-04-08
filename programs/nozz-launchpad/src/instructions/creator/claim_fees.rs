@@ -40,8 +40,6 @@ pub struct ClaimFees<'info> {
         seeds = [BondingCurve::SEED, bonding_curve.mint.key().as_ref()],
         bump = bonding_curve.bump,
         constraint = bonding_curve.creator == creator.key() @ NozzError::UnAuthorized,
-        constraint = !bonding_curve.complete @ NozzError::BondingCurveComplete,
-        constraint = !bonding_curve.migrated @ NozzError::AlreadyGraduated,
     )]
     pub bonding_curve: Account<'info, BondingCurve>,
 

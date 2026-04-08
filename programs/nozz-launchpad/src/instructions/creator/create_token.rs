@@ -10,8 +10,8 @@ use anchor_spl::{
 };
 
 use crate::{
-    error::NozzError, utils::VIRTUAL_SOL_SEED, BondingCurve, NozzLaunchpadConfig, TokenCreated,
-    ANCHOR_DISCRIMINATOR, CREATOR_TOKEN_MINT_DECIMALS,
+    error::NozzError, utils::VIRTUAL_SOL_SEED, BondingCurve, NozzLaunchpadConfig, StakePool,
+    TokenCreated, ANCHOR_DISCRIMINATOR, CREATOR_TOKEN_MINT_DECIMALS,
 };
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
@@ -19,28 +19,37 @@ pub struct CreateTokenParams {
     pub token_name: String,
     pub token_ticker: String,
     pub token_uri: String,
+    /// Minimum tokens a viewer must stake for subscriber status
+    pub min_stake_amount: u64,
 }
 
 pub fn create_token(ctx: Context<CreateToken>, params: CreateTokenParams) -> Result<()> {
+    require!(params.min_stake_amount > 0, NozzError::ZeroAmount);
+
     let config = &mut ctx.accounts.nozz_launchpad_config;
     let token_mint = ctx.accounts.mint.key();
     let clock = Clock::get()?;
 
     let total_supply = config.initial_token_supply; // Raw Units
-    let bonding_curve_pct = config.bonding_curve_supply_pct as u64;
-
-    // Only increment token_count
-    config.token_count = config
-        .token_count
-        .checked_add(1)
-        .ok_or(NozzError::MathOverflow)?;
 
     // Virtual reserves seed the curve — (bonding_curve_pct)% allocation expressed in raw units
     // with decimals applied, used in x*y=k math
-    let bonding_allocation = total_supply
-        .checked_mul(bonding_curve_pct)
-        .ok_or(NozzError::MathOverflow)?
-        .checked_div(100)
+    let bonding_allocation = pct(total_supply, config.bonding_curve_supply_pct)?;
+    let staking_allocation = pct(total_supply, config.staking_supply_pct)?;
+    // DEX allocation is the remainder — avoids any rounding dust
+    let dex_allocation = total_supply
+        .checked_sub(bonding_allocation)
+        .and_then(|r| r.checked_sub(staking_allocation))
+        .ok_or(NozzError::MathOverflow)?;
+
+    // Reward rate: staking_allocation spread evenly over emission duration
+    let reward_rate_per_second = staking_allocation
+        .checked_div(config.staking_duration_seconds)
+        .ok_or(NozzError::MathOverflow)?;
+
+    let reward_end_time = clock
+        .unix_timestamp
+        .checked_add(config.staking_duration_seconds as i64)
         .ok_or(NozzError::MathOverflow)?;
 
     // PDA signer seeds
@@ -49,7 +58,6 @@ pub fn create_token(ctx: Context<CreateToken>, params: CreateTokenParams) -> Res
         token_mint.as_ref(),
         &[ctx.bumps.bonding_curve],
     ];
-    let signer_seeds = &[bonding_curve_seeds];
 
     let metadata = TokenMetadata {
         update_authority: Some(ctx.accounts.bonding_curve.key()).try_into().unwrap(),
@@ -97,7 +105,7 @@ pub fn create_token(ctx: Context<CreateToken>, params: CreateTokenParams) -> Res
                 mint_authority: ctx.accounts.bonding_curve.to_account_info(),
                 update_authority: ctx.accounts.bonding_curve.to_account_info(),
             },
-            signer_seeds,
+            &[bonding_curve_seeds],
         ),
         params.token_name.clone(),
         params.token_ticker.clone(),
@@ -105,7 +113,13 @@ pub fn create_token(ctx: Context<CreateToken>, params: CreateTokenParams) -> Res
     )?;
 
     // Mint entire supply to bonding curve token account
-    // 40% will be sold via the curve; 60% stays locked for DEX liquidity
+    // Mint bonding curve + DEX allocation -> bonding_curve_ata
+    // 30% will be sold via the curve; 30% stays locked for DEX liquidity
+
+    let bc_and_dex = bonding_allocation
+        .checked_add(dex_allocation)
+        .ok_or(NozzError::MathOverflow)?;
+
     mint_to(
         CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
@@ -114,9 +128,23 @@ pub fn create_token(ctx: Context<CreateToken>, params: CreateTokenParams) -> Res
                 to: ctx.accounts.bonding_curve_ata.to_account_info(),
                 authority: ctx.accounts.bonding_curve.to_account_info(),
             },
-            signer_seeds,
+            &[bonding_curve_seeds],
         ),
-        total_supply,
+        bc_and_dex,
+    )?;
+
+    // Mint staking allocation -> stake_reward_vault
+    mint_to(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            MintTo {
+                mint: ctx.accounts.mint.to_account_info(),
+                to: ctx.accounts.stake_reward_vault.to_account_info(),
+                authority: ctx.accounts.bonding_curve.to_account_info(),
+            },
+            &[bonding_curve_seeds], // bonding_curve is mint authority, so it signs for both mints
+        ),
+        staking_allocation,
     )?;
 
     ctx.accounts.bonding_curve.set_inner(BondingCurve {
@@ -142,6 +170,27 @@ pub fn create_token(ctx: Context<CreateToken>, params: CreateTokenParams) -> Res
         bump: ctx.bumps.bonding_curve,
         vault_bump: ctx.bumps.bonding_curve_vault,
     });
+
+    // Initialize stake pool state
+    ctx.accounts.stake_pool.set_inner(StakePool {
+        mint: token_mint,
+        creator: ctx.accounts.creator.key(),
+        min_stake_amount: params.min_stake_amount,
+        total_staked: 0,
+        reward_rate_per_second,
+        reward_per_token_stored: 0,
+        last_update_time: clock.unix_timestamp,
+        total_rewards_distributed: 0,
+        reward_vault_balance: staking_allocation,
+        reward_end_time,
+        bump: ctx.bumps.stake_pool,
+    });
+
+    // Only increment token_count
+    config.token_count = config
+        .token_count
+        .checked_add(1)
+        .ok_or(NozzError::MathOverflow)?;
 
     emit!(TokenCreated {
         mint: token_mint,
@@ -211,6 +260,8 @@ pub struct CreateToken<'info> {
     /// CHECK: PDA used as a pure SOL vault
     pub bonding_curve_vault: UncheckedAccount<'info>,
 
+    /// Holds bonding curve supply + DEX allocation
+    /// (DEX portion stays locked here until graduation)
     #[account(
         init_if_needed,
         payer = creator,
@@ -220,8 +271,37 @@ pub struct CreateToken<'info> {
     )]
     pub bonding_curve_ata: InterfaceAccount<'info, TokenAccount>,
 
+    /// Staking pool state PDA
+    #[account(
+        init,
+        payer = creator,
+        space = StakePool::LEN,
+        seeds = [StakePool::SEED, mint.key().as_ref()],
+        bump
+    )]
+    pub stake_pool: Account<'info, StakePool>,
+
+    /// Reward vault — holds 40% staking reward supply, emitted over staking_duration
+    #[account(
+        init,
+        payer = creator,
+        associated_token::mint = mint,
+        associated_token::authority = stake_pool,
+        associated_token::token_program = token_program,
+    )]
+    pub stake_reward_vault: InterfaceAccount<'info, TokenAccount>,
+
     pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
+}
+
+/// Helper: calculate pct% of amount without overflow
+fn pct(amount: u64, pct: u8) -> Result<u64> {
+    (amount as u128)
+        .checked_mul(pct as u128)
+        .and_then(|n| n.checked_div(100))
+        .map(|n| n as u64)
+        .ok_or_else(|| error!(NozzError::MathOverflow))
 }

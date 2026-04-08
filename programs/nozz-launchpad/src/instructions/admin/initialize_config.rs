@@ -41,15 +41,18 @@ pub fn initialize_config(
 ) -> Result<()> {
     require!(params.platform_fee_bps <= 1000, NozzError::InvalidFee);
     require!(params.streamer_fee_bps <= 1000, NozzError::InvalidFee);
+    require!(params.graduation_sol_threshold > 0, NozzError::ZeroAmount);
     require!(
         params.bonding_curve_supply_pct > 0 && params.bonding_curve_supply_pct <= 100,
         NozzError::InvalidFee
     );
     require!(
-        params.bonding_curve_supply_pct + params.staking_supply_pct + params.dex_supply_pct == 100,
-        NozzError::InvalidPctDistribution
+        (params.bonding_curve_supply_pct as u16)
+            .checked_add(params.staking_supply_pct as u16)
+            .and_then(|s| s.checked_add(params.dex_supply_pct as u16))
+            == Some(100),
+        NozzError::InvalidSupplyAllocation
     );
-    require!(params.graduation_sol_threshold > 0, NozzError::ZeroAmount);
 
     let token_decimals_factor: u64 = (10 as u64).pow(CREATOR_TOKEN_MINT_DECIMALS as u32);
     let total_supply = params
@@ -57,24 +60,31 @@ pub fn initialize_config(
         .checked_mul(token_decimals_factor)
         .ok_or(NozzError::MathOverflow)?;
 
-    let config = &mut ctx.accounts.nozz_launchpad_config;
-    config.authority = ctx.accounts.authority.key();
-    config.treasury = params.treasury;
-    config.platform_fee_bps = params.platform_fee_bps;
-    config.streamer_fee_bps = params.streamer_fee_bps;
-    config.graduation_sol_threshold = params.graduation_sol_threshold;
-    config.initial_token_supply = total_supply;
-    config.bonding_curve_supply_pct = params.bonding_curve_supply_pct;
-    config.staking_supply_pct = params.staking_supply_pct;
-    config.dex_supply_pct = params.dex_supply_pct;
-    config.staking_duration_seconds = params.staking_duration_seconds;
-    config.token_count = 0;
-    config.bump = ctx.bumps.nozz_launchpad_config;
+    ctx.accounts
+        .nozz_launchpad_config
+        .set_inner(NozzLaunchpadConfig {
+            authority: ctx.accounts.authority.key(),
+            treasury: params.treasury,
+            platform_fee_bps: params.platform_fee_bps,
+            streamer_fee_bps: params.streamer_fee_bps,
+            graduation_sol_threshold: params.graduation_sol_threshold,
+            initial_token_supply: total_supply,
+            bonding_curve_supply_pct: params.bonding_curve_supply_pct,
+            staking_supply_pct: params.staking_supply_pct,
+            dex_supply_pct: params.dex_supply_pct,
+            staking_duration_seconds: params.staking_duration_seconds,
+            token_count: 0,
+            bump: ctx.bumps.nozz_launchpad_config,
+        });
 
     msg!(
-        "Nozz Launchpad initialized | graduation threshold: {} lamports",
-        params.graduation_sol_threshold
+        "Nozz Launchpad initialized | BC: {}% | Staking: {}% | DEX: {}% | graduation: {} lamports",
+        params.bonding_curve_supply_pct,
+        params.staking_supply_pct,
+        params.dex_supply_pct,
+        params.graduation_sol_threshold,
     );
+
     Ok(())
 }
 

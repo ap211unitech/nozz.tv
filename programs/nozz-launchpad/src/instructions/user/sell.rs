@@ -31,7 +31,7 @@ pub fn sell_token(ctx: Context<SellToken>, token_amount: u64, min_sol_out: u64) 
         NozzError::InsufficientReserves
     );
 
-    // Transfer Tokens: seller ATA → bonding_curve ATA
+    // Transfer Tokens: seller ATA -> bonding_curve ATA
     transfer_checked(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
@@ -46,7 +46,7 @@ pub fn sell_token(ctx: Context<SellToken>, token_amount: u64, min_sol_out: u64) 
         token_mint.decimals,
     )?;
 
-    // Transfer SOL: vault → seller (net)
+    // Transfer SOL: vault -> seller (net)
     // Direct lamport manipulation — vault is a PDA with no data, safe to mutate
     **ctx
         .accounts

@@ -43,7 +43,7 @@ pub fn buy_token(ctx: Context<BuyToken>, sol_amount: u64, min_tokens_out: u64) -
         NozzError::InsufficientTokens
     );
 
-    // Transfer SOL: buyer → platform treasury
+    // Transfer SOL: buyer -> platform treasury
     if platform_fee > 0 {
         system_program::transfer(
             CpiContext::new(
@@ -57,7 +57,7 @@ pub fn buy_token(ctx: Context<BuyToken>, sol_amount: u64, min_tokens_out: u64) -
         )?;
     }
 
-    // Transfer SOL: buyer → bonding curve vault (for SOL)
+    // Transfer SOL: buyer -> bonding curve vault (for SOL)
     system_program::transfer(
         CpiContext::new(
             ctx.accounts.system_program.to_account_info(),
@@ -69,7 +69,7 @@ pub fn buy_token(ctx: Context<BuyToken>, sol_amount: u64, min_tokens_out: u64) -
         sol_after_fees,
     )?;
 
-    // Transfer Tokens: bonding_curve ATA → buyer ATA (TransferChecked for Token-2022)
+    // Transfer Tokens: bonding_curve ATA -> buyer ATA (TransferChecked for Token-2022)
     // TransferChecked is required for Token-2022 — it validates decimals
     // and handles any transfer hook extensions on the mint.
     transfer_checked(
@@ -142,6 +142,14 @@ pub fn buy_token(ctx: Context<BuyToken>, sol_amount: u64, min_tokens_out: u64) -
         timestamp: clock.unix_timestamp,
     });
 
+    msg!(
+        "Buy: {} lamports -> {} tokens | fees: {} platform + {} creator",
+        sol_amount,
+        tokens_out,
+        platform_fee,
+        creator_fee
+    );
+
     Ok(())
 }
 
@@ -151,7 +159,6 @@ pub struct BuyToken<'info> {
     pub buyer: Signer<'info>,
 
     #[account(
-        mut,
         seeds = [NozzLaunchpadConfig::SEED],
         bump = nozz_launchpad_config.bump
     )]
@@ -178,6 +185,7 @@ pub struct BuyToken<'info> {
     pub mint: InterfaceAccount<'info, Mint>,
 
     #[account(
+        mut,
         seeds = [BondingCurve::SEED, bonding_curve.mint.key().as_ref()],
         bump = bonding_curve.bump,
         constraint = !bonding_curve.complete @ NozzError::BondingCurveComplete,

@@ -11,8 +11,8 @@ pub enum NozzError {
     #[msg("Amount must be greater than zero")]
     ZeroAmount,
 
-    #[msg("Invalid fee basis points distribution (total = 100%)")]
-    InvalidPctDistribution,
+    #[msg("Supply percentages must sum to exactly 100")]
+    InvalidSupplyAllocation,
 
     #[msg("Invalid fee basis points (max 1000 = 10%)")]
     InvalidFee,
@@ -43,4 +43,16 @@ pub enum NozzError {
 
     #[msg("Token supply exceeded")]
     SupplyExceeded,
+
+    #[msg("Nothing staked")]
+    NothingStaked,
+
+    #[msg("Insufficient staked balance")]
+    InsufficientStakedBalance,
+
+    #[msg("No rewards to claim")]
+    NoRewardsToClaim,
+
+    #[msg("Reward pool is empty")]
+    RewardPoolEmpty,
 }

@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::error::NozzError;
+use crate::{error::NozzError, StakePool};
 
 /// Constant product bonding curve: x * y = k
 /// This mirrors pump.fun's implementation with virtual reserves.
@@ -153,6 +153,78 @@ pub fn get_current_price(virtual_sol_reserves: u64, virtual_token_reserves: u64)
         .ok_or(NozzError::MathOverflow)?;
 
     Ok(price as u64)
+}
+
+/// Update the global reward_per_token_stored accumulator.
+/// Called before any stake/unstake/claim to bring accumulator up to date.
+///
+/// Formula:
+///   reward_per_token_stored += (reward_rate * elapsed_seconds * SCALE) / total_staked
+///
+/// This is the standard Synthetix-style staking math.
+pub fn update_reward_per_token(
+    reward_per_token_stored: u128,
+    last_update_time: i64,
+    reward_end_time: i64,
+    reward_rate_per_second: u64,
+    total_staked: u64,
+    current_time: i64,
+) -> Result<u128> {
+    // No stakers — accumulator doesn't move (avoid division by zero)
+    if total_staked == 0 {
+        return Ok(reward_per_token_stored);
+    }
+
+    // Cap effective time at reward_end_time so we don't emit past the pool
+    let effective_time = current_time.min(reward_end_time);
+
+    // If we're past the end and already accounted for it, nothing to do
+    if effective_time <= last_update_time {
+        return Ok(reward_per_token_stored);
+    }
+
+    let elapsed = (effective_time - last_update_time) as u128;
+
+    // reward_per_token_delta = (rate * elapsed * SCALE) / total_staked
+    let delta = (reward_rate_per_second as u128)
+        .checked_mul(elapsed)
+        .ok_or(NozzError::MathOverflow)?
+        .checked_mul(StakePool::REWARD_SCALE)
+        .ok_or(NozzError::MathOverflow)?
+        .checked_div(total_staked as u128)
+        .ok_or(NozzError::MathOverflow)?;
+
+    reward_per_token_stored
+        .checked_add(delta)
+        .ok_or_else(|| error!(NozzError::MathOverflow))
+}
+
+/// Calculate pending rewards for a user since their last interaction.
+///
+/// Formula:
+///   earned = (amount_staked * (reward_per_token - reward_per_token_paid)) / SCALE
+///            + rewards_already_earned
+pub fn calculate_pending_rewards(
+    amount_staked: u64,
+    reward_per_token_stored: u128,
+    reward_per_token_paid: u128,
+    rewards_already_earned: u64,
+) -> Result<u64> {
+    let delta = reward_per_token_stored
+        .checked_sub(reward_per_token_paid)
+        .ok_or(NozzError::MathOverflow)?;
+
+    let new_rewards = (amount_staked as u128)
+        .checked_mul(delta)
+        .ok_or(NozzError::MathOverflow)?
+        .checked_div(StakePool::REWARD_SCALE)
+        .ok_or(NozzError::MathOverflow)?;
+
+    let total = (rewards_already_earned as u128)
+        .checked_add(new_rewards)
+        .ok_or(NozzError::MathOverflow)?;
+
+    Ok(total as u64)
 }
 
 #[cfg(test)]

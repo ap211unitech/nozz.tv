@@ -19,6 +19,7 @@ fn default_params() -> CreateTokenParams {
         token_name: "NozzStream1".to_string(),
         token_ticker: "NST1".to_string(),
         token_uri: "https://raw.githubusercontent.com/solana-developers/opos-asset/main/assets/DeveloperPortal/metadata.json".to_string(),
+        min_stake_amount: 10
     }
 }
 
@@ -145,6 +146,7 @@ fn test_create_token_duplicate_fails() {
                 token_name: "NozzStream2".to_string(),
                 token_ticker: "NST2".to_string(),
                 token_uri: "https://arweave.net/test-metadata-hash".to_string(),
+                min_stake_amount: 100,
             },
         })
         .send();

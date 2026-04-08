@@ -4,6 +4,8 @@ use crate::{error::NozzError, NozzLaunchpadConfig, CREATOR_TOKEN_MINT_DECIMALS};
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct UpdateConfigParams {
+    pub new_authority: Option<Pubkey>,
+
     /// Treasury that receives platform fees
     pub treasury: Pubkey,
 
@@ -28,11 +30,18 @@ pub struct UpdateConfigParams {
 pub fn update_config(ctx: Context<UpdateConfig>, params: UpdateConfigParams) -> Result<()> {
     require!(params.platform_fee_bps <= 1000, NozzError::InvalidFee);
     require!(params.streamer_fee_bps <= 1000, NozzError::InvalidFee);
+    require!(params.graduation_sol_threshold > 0, NozzError::ZeroAmount);
     require!(
         params.bonding_curve_supply_pct > 0 && params.bonding_curve_supply_pct <= 100,
         NozzError::InvalidFee
     );
-    require!(params.graduation_sol_threshold > 0, NozzError::ZeroAmount);
+    require!(
+        (params.bonding_curve_supply_pct as u16)
+            .checked_add(ctx.accounts.nozz_launchpad_config.staking_supply_pct as u16)
+            .and_then(|s| s.checked_add(ctx.accounts.nozz_launchpad_config.dex_supply_pct as u16))
+            == Some(100),
+        NozzError::InvalidSupplyAllocation
+    );
 
     let token_decimals_factor: u64 = (10 as u64).pow(CREATOR_TOKEN_MINT_DECIMALS as u32);
     let total_supply = params
@@ -47,6 +56,12 @@ pub fn update_config(ctx: Context<UpdateConfig>, params: UpdateConfigParams) -> 
     config.graduation_sol_threshold = params.graduation_sol_threshold;
     config.initial_token_supply = total_supply;
     config.bonding_curve_supply_pct = params.bonding_curve_supply_pct;
+
+    if let Some(new_authority) = params.new_authority {
+        config.authority = new_authority;
+    }
+
+    msg!("Platform config updated");
 
     Ok(())
 }

@@ -19,6 +19,8 @@ declare_id!("5pAxXXdL7NzFKqpp6TnuxBojeFuKEijX6amRvY4G8dvA");
 pub mod nozz_launchpad {
     use super::*;
 
+    // ********** Platform config **********
+
     /// Initialize the global platform config (admin only)
     pub fn initialize_config(
         ctx: Context<InitializeConfig>,
@@ -31,6 +33,10 @@ pub mod nozz_launchpad {
     pub fn update_config(ctx: Context<UpdateConfig>, params: UpdateConfigParams) -> Result<()> {
         instructions::update_config(ctx, params)
     }
+
+    // *************************************
+
+    // ********** Token LaunchPad **********
 
     /// Create a new streamer token with bonding curve
     pub fn create_token(ctx: Context<CreateToken>, params: CreateTokenParams) -> Result<()> {
@@ -56,4 +62,30 @@ pub mod nozz_launchpad {
     pub fn graduate_to_dex(ctx: Context<GraduateToDex>) -> Result<()> {
         instructions::graduate_to_dex(ctx)
     }
+
+    // *************************************
+
+    // ******** Stake-to-Subscribe ********
+
+    /// Stake creator tokens to earn rewards and get subscriber status
+    pub fn stake(ctx: Context<Stake>, amount: u64) -> Result<()> {
+        instructions::stake(ctx, amount)
+    }
+
+    /// Unstake tokens — subscriber status drops immediately if below threshold
+    pub fn unstake(ctx: Context<Unstake>, amount: u64) -> Result<()> {
+        instructions::unstake(ctx, amount)
+    }
+
+    /// Claim accumulated staking rewards
+    pub fn claim_stake_rewards(ctx: Context<ClaimStakeRewards>) -> Result<()> {
+        instructions::claim_stake_rewards(ctx)
+    }
+
+    /// Creator can update minimum stake amount for subscriber status
+    pub fn update_min_stake(ctx: Context<UpdateMinStake>, new_min_stake_amount: u64) -> Result<()> {
+        instructions::update_min_stake(ctx, new_min_stake_amount)
+    }
+
+    // *************************************
 }

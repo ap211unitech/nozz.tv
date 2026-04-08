@@ -119,3 +119,85 @@ impl BondingCurve {
         self.real_sol_reserves >= self.graduation_sol_threshold || self.real_token_reserves == 0
     }
 }
+
+/// Per-token staking pool state
+#[account]
+#[derive(InitSpace)]
+pub struct StakePool {
+    /// The token mint this pool is for
+    pub mint: Pubkey,
+
+    /// Creator of the token — only they can update min_stake_amount
+    pub creator: Pubkey,
+
+    /// Minimum tokens a viewer must stake to get subscriber status
+    pub min_stake_amount: u64,
+
+    /// Total tokens currently staked across all stakers
+    pub total_staked: u64,
+
+    /// Tokens emitted per second from the reward pool
+    /// = staking_allocation / staking_duration_seconds
+    pub reward_rate_per_second: u64,
+
+    /// Global accumulator: reward tokens earned per staked token since inception
+    /// Scaled by REWARD_SCALE to preserve precision (avoids fractional tokens)
+    pub reward_per_token_stored: u128,
+
+    /// Timestamp of last time reward_per_token_stored was updated
+    pub last_update_time: i64,
+
+    /// Total rewards distributed so far (for accounting / frontend)
+    pub total_rewards_distributed: u64,
+
+    /// Remaining tokens in reward vault (decrements as rewards are claimed)
+    pub reward_vault_balance: u64,
+
+    /// Emission end time: created_at + staking_duration_seconds
+    pub reward_end_time: i64,
+
+    pub bump: u8,
+}
+
+impl StakePool {
+    pub const SEED: &'static [u8] = b"stake_pool";
+    pub const REWARD_VAULT_SEED: &'static [u8] = b"stake_reward_vault";
+
+    /// Scale factor to preserve precision in reward_per_token_stored
+    /// Using 1e12 means we can represent fractions down to 1/1_000_000_000_000
+    pub const REWARD_SCALE: u128 = 1_000_000_000_000;
+
+    pub const LEN: usize = (ANCHOR_DISCRIMINATOR as usize) + StakePool::INIT_SPACE;
+}
+
+/// Per-user per-token stake position
+#[account]
+#[derive(InitSpace)]
+pub struct StakePosition {
+    /// Wallet that owns this stake
+    pub owner: Pubkey,
+
+    /// The token mint staked
+    pub mint: Pubkey,
+
+    /// Amount of tokens currently staked
+    pub amount_staked: u64,
+
+    /// Snapshot of reward_per_token_stored when user last interacted
+    /// Used to calculate pending rewards since last interaction
+    pub reward_per_token_paid: u128,
+
+    /// Rewards accumulated but not yet claimed (raw token units)
+    pub rewards_earned: u64,
+
+    /// True if amount_staked >= stake_pool.min_stake_amount
+    pub is_subscribed: bool,
+
+    pub staked_at: i64,
+    pub bump: u8,
+}
+
+impl StakePosition {
+    pub const SEED: &'static [u8] = b"stake_position";
+    pub const LEN: usize = (ANCHOR_DISCRIMINATOR as usize) + StakePosition::INIT_SPACE;
+}
