@@ -2,11 +2,11 @@ use anchor_client::{
     anchor_lang::{prelude::system_program, solana_program},
     solana_sdk::{pubkey::Pubkey, signer::Signer},
 };
-use serial_test::serial;
 use nozz_launchpad::{
     accounts as nozz_accounts, instruction as nozz_instructions, state as nozz_state,
     CreateTokenParams,
 };
+use serial_test::serial;
 use spl_token_2022::{
     extension::{BaseStateWithExtensions, StateWithExtensions},
     state::Mint,
@@ -85,20 +85,21 @@ fn test_create_token_success() {
     assert!(!bc.complete);
     assert!(!bc.migrated);
 
-    let stake_pool: nozz_state::StakePool = program.account(
-        Pubkey::find_program_address(
-            &[
-                nozz_state::StakePool::SEED,
-                mint_pubkey.as_ref(),
-            ],
-            &nozz_launchpad::ID,
+    let stake_pool: nozz_state::StakePool = program
+        .account(
+            Pubkey::find_program_address(
+                &[nozz_state::StakePool::SEED, mint_pubkey.as_ref()],
+                &nozz_launchpad::ID,
+            )
+            .0,
         )
-        .0,
-    )
-    .unwrap();
+        .unwrap();
     assert_eq!(stake_pool.mint, mint_pubkey);
     assert_eq!(stake_pool.creator, payer.pubkey());
-    assert_eq!(stake_pool.min_stake_amount, default_params().min_stake_amount);
+    assert_eq!(
+        stake_pool.min_stake_amount,
+        default_params().min_stake_amount
+    );
     assert_eq!(stake_pool.reward_vault_balance, expected_staking_allocation);
     assert_eq!(stake_pool.total_staked, 0);
 
@@ -151,29 +152,24 @@ fn test_create_token_success() {
             bonding_curve_vault: bonding_curve_vault_pda,
             bonding_curve_ata: bonding_curve_ata.to_bytes().into(),
             stake_pool: Pubkey::find_program_address(
-                &[
-                    nozz_launchpad::state::StakePool::SEED,
-                    mint_pubkey.as_ref(),
-                ],
+                &[nozz_launchpad::state::StakePool::SEED, mint_pubkey.as_ref()],
                 &nozz_launchpad::ID,
             )
             .0,
-            stake_reward_vault: spl_associated_token_account::get_associated_token_address_with_program_id(
-                &Pubkey::find_program_address(
-                    &[
-                        nozz_launchpad::state::StakePool::SEED,
-                        mint_pubkey.as_ref(),
-                    ],
-                    &nozz_launchpad::ID,
+            stake_reward_vault:
+                spl_associated_token_account::get_associated_token_address_with_program_id(
+                    &Pubkey::find_program_address(
+                        &[nozz_launchpad::state::StakePool::SEED, mint_pubkey.as_ref()],
+                        &nozz_launchpad::ID,
+                    )
+                    .0
+                    .to_bytes()
+                    .into(),
+                    &mint_pubkey.to_bytes().into(),
+                    &spl_token_2022::id(),
                 )
-                .0
                 .to_bytes()
                 .into(),
-                &mint_pubkey.to_bytes().into(),
-                &spl_token_2022::id(),
-            )
-            .to_bytes()
-            .into(),
             token_program: spl_token_2022::id().to_bytes().into(),
             associated_token_program: spl_associated_token_account::id().to_bytes().into(),
             system_program: system_program::ID,
