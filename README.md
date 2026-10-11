@@ -1,111 +1,172 @@
 # Nozz.tv
 
-Solana on-chain program powering **Nozz.tv** — enabling tokenized creator ownership, trading logic, and core protocol state management.
+Nozz.tv is a Solana Anchor program for creator-owned token economies. It lets creators mint their own token, launch it through an on-chain bonding curve, capture trading fees, and eventually graduate the liquidity into a DEX while also supporting staking-based subscriber access.
 
-## Overview
+## Why this exists
 
-Traditional streaming platforms leave creators with minimal earnings from ads and subscriptions, and payouts are often delayed and gated behind platform policy. Nozz.tv solves this by letting every streamer issue their own token, backed by an on-chain bonding curve, so that:
+Traditional creator platforms take a large cut of monetization and often delay payouts. Nozz.tv shifts that value flow on-chain so that:
 
-- **Streamers** earn instantly from trading fees every time their token is bought or sold, instead of waiting on subscription payout cycles.
-- **Viewers** become investors, buying tokens in the creators they support and benefiting as that creator's popularity (and token value) grows.
-- **Communities** gain utility — staking a creator's token unlocks subscriber status, access, and rewards, turning passive viewers into engaged stakeholders.
+- streamers and digital creators can launch a token tied to their audience and community
+- fans can buy into the creator economy through a transparent bonding-curve market
+- communities can stake to unlock subscriber perks, access, and reward tiers
+- creators keep more of the value they generate instead of giving it to opaque platform systems
 
-This repository contains the Anchor program that implements that protocol.
+This is especially designed for streaming-first creator businesses, where loyalty, access, and community are the real product. The token becomes a way to align the creator, their audience, and the on-chain incentives around live content, perks, and community ownership.
 
-## Core Modules
+## Program overview
 
-| Module         | Description                                                          |
-| -------------- | -------------------------------------------------------------------- |
-| `constants`    | Global protocol constants (fee rates, seeds, curve parameters, etc.) |
-| `error`        | Custom Anchor error definitions                                      |
-| `events`       | On-chain events emitted for indexing/analytics                       |
-| `instructions` | All instruction handlers (config, launchpad, staking)                |
-| `state`        | Account/state struct definitions                                     |
-| `utils`        | Shared helper logic (math, validation, etc.)                         |
+The project is an Anchor-based Solana program that combines three core flows:
+
+1. Platform configuration
+2. Creator token launch and bonding-curve trading
+3. Staking and DEX graduation
+
+## High-level lifecycle
+
+```mermaid
+flowchart TD
+    A[Admin initializes config] --> B[Creator creates token]
+    B --> C[Bonding curve trading starts]
+    C --> D[Buy / Sell token flows]
+    D --> E[Creator fees accrue]
+    E --> F[Stake tokens for subscriber access]
+    F --> G[Curve reaches graduation threshold]
+    G --> H[Graduate liquidity to Raydium]
+    H --> I[Creator retains LP custody and community staking remains active]
+```
+
+## Core modules
+
+| Module         | Purpose                                                                           |
+| -------------- | --------------------------------------------------------------------------------- |
+| `constants`    | Global seed values, protocol constants, and fixed defaults                        |
+| `error`        | Custom Anchor error codes and validation failures                                 |
+| `events`       | Indexed event emission for trading, graduation, and staking state changes         |
+| `instructions` | Instruction handlers for config, token launch, trading, and staking               |
+| `state`        | On-chain account layouts for config, bonding curves, staking pools, and positions |
+| `utils`        | Curve math and helper logic shared by instructions                                |
 
 ## Features
 
-### 1. Platform Config
+### 1. Platform config
 
-Admin-managed global configuration that governs protocol-wide parameters.
+The protocol is configured once at the singleton config PDA.
 
-- `initialize_config` — Initializes the global platform config (admin only).
-- `update_config` — Updates the global platform config (admin only).
+- `initialize_config` — creates the global platform config
+- `update_config` — updates the protocol fee split and platform settings
 
-### 2. Token LaunchPad (Creator Tokenization)
+### 2. Creator token launch
 
-Each streamer can launch a unique token on a bonding curve, reflecting their popularity and market demand. Trading fees are paid directly to the streamer, giving them instant, transparent earnings instead of relying on opaque platform payouts.
+Creators can mint a Token-2022 asset with metadata and bootstrap it into a bonding curve.
 
-- `create_token` — Creates a new streamer token with an associated bonding curve.
-- `buy_token` — Buys a streamer token along the bonding curve, with slippage protection via `min_tokens_out`.
-- `sell_token` — Sells a streamer token along the bonding curve, with slippage protection via `min_sol_out`.
-- `claim_fees` — Allows a streamer to claim accumulated fees from trading activity on their token.
-- `graduate_to_dex` — Permissionlessly migrates a token to a DEX once its bonding curve has been completed, unlocking deeper liquidity.
+- `create_token` — mints the token and initializes its bonding curve + staking pool
+- `buy_token` — executes a buy against the virtual reserve curve
+- `sell_token` — sells token back into the curve and pays out SOL
+- `claim_fees` — allows creator withdrawal of earned fee lamports
+- `graduate_to_dex` — migrates the remaining liquidity into Raydium once the curve is complete
 
-### 3. Stake-to-Subscribe
+### 3. Stake-to-subscribe model
 
-Viewers can stake a creator's token to unlock subscriber status, access perks, and earn staking rewards — turning token ownership into ongoing engagement and loyalty.
+A creator token can be staked to unlock access, subscriber status, and reward accrual. This is the streaming-native layer of the protocol: fans stake to gain access to premium creator benefits, early drops, subscriber perks, and reward distributions.
 
-- `stake` — Stakes creator tokens to earn rewards and gain subscriber status.
-- `unstake` — Unstakes tokens; subscriber status is revoked immediately if the remaining stake falls below the required threshold.
-- `claim_stake_rewards` — Claims accumulated staking rewards.
-- `update_min_stake` — Lets a creator update the minimum stake amount required for subscriber status.
+- `stake` — deposits tokens into the creator's staking pool
+- `unstake` — removes stake and updates subscription status
+- `claim_stake_rewards` — claims accumulated reward emissions
+- `update_min_stake` — lets creator adjust membership threshold
 
-## Architecture
+### 4. Streaming-powered creator economy
 
+The protocol is built around the idea that creators are not just artists or brands — they are communities. In a streaming context, this means:
+
+- fans can participate in the creator economy instead of only passively watching
+- subscription tiers can be represented through staking and token access
+- rewards can be tied to creator activity, community engagement, and token utility
+- the platform creates a bridge between live content, audience loyalty, and on-chain monetization
+
+This keeps the original streaming vision alive while still matching the program’s actual on-chain mechanics.
+
+## Repository structure
+
+```text
+├── Anchor.toml                    # Anchor workspace config
+├── Cargo.toml                     # Rust workspace settings
+├── README.md                      # Project docs + lifecycle overview
+├── package.json                   # JS helpers / local tooling
+├── programs/                      # Solana program source tree
+│   └── nozz-launchpad/            # Main Anchor program crate
+│       └── src/
+│           ├── constants.rs       # Seed values and fixed protocol constants
+│           ├── error.rs           # Custom Anchor errors
+│           ├── events.rs          # Event emissions for trading/staking/graduation
+│           ├── instructions/      # Program instruction handlers
+│           │   ├── admin/         # Admin-only config actions
+│           │   ├── creator/       # Creator-side launch actions
+│           │   ├── user/          # User flows: buy, sell, stake, graduate
+│           │   └── mod.rs         # Instruction registry
+│           ├── lib.rs             # Program entrypoint and IDL exports
+│           ├── state/             # On-chain account definitions
+│           │   └── mod.rs
+│           └── utils.rs           # Shared math / PDA / curve helpers
+├── tests/                         # Anchor + Rust end-to-end tests
+│   ├── src/                       # Test harness and scenario runners
+│   └── Cargo.toml                 # Test crate dependencies
+├── migrations/                    # Deployment migration scripts
 ```
-programs/nozz-launchpad/
-└── src/
-    ├── instructions/
-    │   ├── admin/               # initialize_config, update_config
-    │   ├── creator/             # claim_fees, create_token, update_min_stake
-    │   ├── user/                # buy, sell, graduate, stake, unstake, claim_stake_rewards
-    │   └── mod.rs
-    ├── state/                   # Account state definitions
-    │   └── mod.rs
-    ├── constants.rs             # Global constants and PDA seeds
-    ├── error.rs                 # Custom error codes
-    ├── events.rs                # Emitted on-chain events
-    ├── lib.rs                   # Program entrypoint
-    └── utils.rs                 # Shared helper functions
-```
 
-## Tech Stack
+## Tech stack
 
-- **Solana** — high-throughput, low-fee L1 for on-chain trading and state.
-- **Anchor** — Rust framework for Solana program development.
+- Rust
+- Anchor
+- Solana
+- Token-2022 + metadata extensions
+- Raydium CPMM integration for DEX graduation
 
-## Getting Started
-
-### Prerequisites
+## Prerequisites
 
 - [Rust](https://www.rust-lang.org/tools/install)
 - [Solana CLI](https://docs.solana.com/cli/install-solana-cli-tools)
 - [Anchor CLI](https://www.anchor-lang.com/docs/installation)
+- Node.js 18+ (for the JS-based local tooling)
 
-### Build
+## Local development
+
+### Install dependencies
+
+```bash
+pnpm install
+```
+
+### Build the program
 
 ```bash
 anchor build
 ```
 
-### Test
+### Run the tests
 
 ```bash
 anchor test
 ```
 
-### Deploy
+You can also run the Rust test target directly if needed:
 
 ```bash
-anchor deploy
+cargo test -- --nocapture
 ```
+
+### Deploy locally
+
+```bash
+anchor deploy --provider.cluster localnet
+```
+
+## Notes
+
+- The protocol is designed around a creator-owned token launchpad model.
+- Bonding-curve pricing is computed using virtual and real reserve accounting.
+- After graduation, the curve is migrated into a DEX and liquidity is locked under the program-owned bonding-curve identity.
+- Staking rewards are emitted from a dedicated allocation bucket and tied to the token lifecycle.
 
 ## License
 
 MIT
-
-## Contact
-
-- Email: porwalarjun95@gmail.com
-- Portfolio: https://arjunporwal.vercel.app/
