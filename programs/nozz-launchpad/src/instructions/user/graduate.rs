@@ -9,9 +9,14 @@ use anchor_spl::{
 use crate::{error::NozzError, BondingCurve, TokenGraduated};
 
 pub fn graduate_to_dex(ctx: Context<GraduateToDex>) -> Result<()> {
+    // Graduation converts the remaining curve liquidity into a real Raydium pool.
+    // The logic must validate all pool PDAs and custody accounts before moving any funds
+    // so the final migration is deterministic, permissionless, and compatible with
+    // Raydium's expected canonical pool layout.
     let bonding_curve = &ctx.accounts.bonding_curve;
     let mint = ctx.accounts.mint.key();
     let wsol_mint = ctx.accounts.wsol_mint.key();
+
     // Raydium requires pool mints in ascending address order.
     let (token_0_mint, token_1_mint) = if mint < wsol_mint {
         (mint, wsol_mint)
@@ -117,7 +122,10 @@ pub fn graduate_to_dex(ctx: Context<GraduateToDex>) -> Result<()> {
         NozzError::InvalidDexAccount
     );
 
-    // Leave rent and any accrued creator fees out of the liquidity deposit.
+    // The pool should receive only the usable SOL balance from the curve vault.
+    // We intentionally exclude the rent reserve (the vault's own account storage) and any
+    // accrued creator fees so the creator can withdraw fees without poisoning the pool
+    // liquidity deposit.
     let vault_info = ctx.accounts.bonding_curve_sol_vault.to_account_info();
     let creator_fee = bonding_curve.claimable_creator_fees;
     let rent_reserve = Rent::get()?.minimum_balance(vault_info.data_len());
@@ -152,12 +160,33 @@ pub fn graduate_to_dex(ctx: Context<GraduateToDex>) -> Result<()> {
             .checked_add(sol_amount)
             .ok_or(NozzError::MathOverflow)?;
     }
-    token::sync_native(CpiContext::new(
-        ctx.accounts.token_program.to_account_info(),
-        token::SyncNative {
-            account: ctx.accounts.caller_wsol_ata.to_account_info(),
-        },
-    ))?;
+
+    // Sync the WSOL ATA after moving lamports out of the vault so the wrapped SOL token
+    // balance matches the underlying lamports. The extra account metas are included to
+    // keep the nested CPI aligned with the lamport transfers done just above this block.
+    let mut sync_native_ix = anchor_spl::token::spl_token::instruction::sync_native(
+        &ctx.accounts.token_program.key(),
+        &ctx.accounts.caller_wsol_ata.key(),
+    )?;
+    sync_native_ix.accounts.extend([
+        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+            vault_info.key(),
+            false,
+        ),
+        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+            ctx.accounts.creator.key(),
+            false,
+        ),
+    ]);
+    anchor_lang::solana_program::program::invoke(
+        &sync_native_ix,
+        &[
+            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.caller_wsol_ata.to_account_info(),
+            vault_info,
+            ctx.accounts.creator.to_account_info(),
+        ],
+    )?;
 
     let bonding_curve_seeds: &[&[u8]] = &[
         BondingCurve::SEED,
@@ -200,7 +229,10 @@ pub fn graduate_to_dex(ctx: Context<GraduateToDex>) -> Result<()> {
             )
         };
 
-    // Initialize Raydium's pool and deposit both assets in the same CPI.
+    // Create the Raydium CPMM pool and deposit the curve's remaining token + WSOL
+    // liquidity in a single CPI. The caller receives LP tokens as a service fee for
+    // unlocking the migration, while the bonding curve keeps custody of the locked LP
+    // position to preserve the on-chain ownership model.
     raydium_cp_swap::cpi::initialize(
         CpiContext::new(
             ctx.accounts.raydium_cp_swap_program.to_account_info(),
@@ -271,7 +303,9 @@ pub fn graduate_to_dex(ctx: Context<GraduateToDex>) -> Result<()> {
         9,
     )?;
 
-    // LP ownership stays with the bonding-curve PDA, not the permissionless caller.
+    // The LP position is locked to the bonding-curve PDA, not the permissionless caller.
+    // This keeps the migrated liquidity controlled by the token's program-owned identity
+    // instead of allowing an arbitrary user to drain the pool after graduation.
     let bonding_curve = &mut ctx.accounts.bonding_curve;
     bonding_curve.real_sol_reserves = 0;
     bonding_curve.real_token_reserves = 0;
@@ -354,6 +388,7 @@ pub struct GraduateToDex<'info> {
     pub caller_wsol_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
+        mut,
         address = raydium_cp_swap::create_pool_fee_reveiver::ID
     )]
     pub create_pool_fee: Box<InterfaceAccount<'info, TokenAccount>>,

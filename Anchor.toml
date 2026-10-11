@@ -17,3 +17,19 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "cargo test -- --nocapture"
+
+[test]
+startup_wait = 10000
+
+[test.validator]
+bind_address = "127.0.0.1"
+url = "https://api.mainnet-beta.solana.com"
+
+[[test.validator.clone]]
+address = "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C"
+
+[[test.validator.clone]]
+address = "DNXgeM9EiiaAbaWvwjHj9fQQLAX5ZsfHyvmYUNRAdNC8"
+
+[[test.validator.clone]]
+address = "D4FPEruKEHrG5TenZ2mpDGEfu1iUvTiqBxvpU8HLBvC2"
