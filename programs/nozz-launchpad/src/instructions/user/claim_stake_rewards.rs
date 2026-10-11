@@ -5,7 +5,11 @@ use anchor_spl::{
 };
 
 use crate::{
-    CREATOR_TOKEN_MINT_DECIMALS, error::NozzError, events::RewardsClaimed, state::{StakePool, StakePosition}, utils::{calculate_pending_rewards, update_reward_per_token}
+    error::NozzError,
+    events::RewardsClaimed,
+    state::{StakePool, StakePosition},
+    utils::{calculate_pending_rewards, update_reward_per_token},
+    CREATOR_TOKEN_MINT_DECIMALS,
 };
 
 pub fn claim_stake_rewards(ctx: Context<ClaimStakeRewards>) -> Result<()> {
@@ -97,7 +101,6 @@ pub struct ClaimStakeRewards<'info> {
         mint::decimals = CREATOR_TOKEN_MINT_DECIMALS,
         extensions::metadata_pointer::metadata_address = mint,
         constraint = mint.key() == stake_pool.mint @ NozzError::InvalidTokenMint,
-  
     )]
     pub mint: InterfaceAccount<'info, Mint>,
 

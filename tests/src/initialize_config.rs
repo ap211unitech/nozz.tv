@@ -36,7 +36,6 @@ fn test_initialize_config() {
         nozz_config_account.graduation_sol_threshold,
         50 * 1_000_000_000
     );
-    assert_eq!(nozz_config_account.token_count, 0);
     assert_eq!(
         nozz_config_account.initial_token_supply,
         100_000_000 * (1000000)

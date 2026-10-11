@@ -38,6 +38,9 @@ pub enum NozzError {
     #[msg("Insufficient SOL in bonding curve reserves")]
     InsufficientReserves,
 
+    #[msg("Invalid DEX account")]
+    InvalidDexAccount,
+
     #[msg("Insufficient tokens in bonding curve")]
     InsufficientTokens,
 

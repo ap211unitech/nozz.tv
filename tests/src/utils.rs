@@ -157,29 +157,24 @@ pub fn send_create_token(params: CreateTokenParams) {
             bonding_curve_vault: bonding_curve_vault_pda,
             bonding_curve_ata: bonding_curve_ata.to_bytes().into(),
             stake_pool: Pubkey::find_program_address(
-                &[
-                    nozz_launchpad::state::StakePool::SEED,
-                    mint_pubkey.as_ref(),
-                ],
+                &[nozz_launchpad::state::StakePool::SEED, mint_pubkey.as_ref()],
                 &nozz_launchpad::ID,
             )
             .0,
-            stake_reward_vault: spl_associated_token_account::get_associated_token_address_with_program_id(
-                &Pubkey::find_program_address(
-                    &[
-                        nozz_launchpad::state::StakePool::SEED,
-                        mint_pubkey.as_ref(),
-                    ],
-                    &nozz_launchpad::ID,
+            stake_reward_vault:
+                spl_associated_token_account::get_associated_token_address_with_program_id(
+                    &Pubkey::find_program_address(
+                        &[nozz_launchpad::state::StakePool::SEED, mint_pubkey.as_ref()],
+                        &nozz_launchpad::ID,
+                    )
+                    .0
+                    .to_bytes()
+                    .into(),
+                    &mint_pubkey.to_bytes().into(),
+                    &spl_token_2022::id(),
                 )
-                .0
                 .to_bytes()
                 .into(),
-                &mint_pubkey.to_bytes().into(),
-                &spl_token_2022::id(),
-            )
-            .to_bytes()
-            .into(),
             token_program: spl_token_2022::id().to_bytes().into(),
             associated_token_program: spl_associated_token_account::id().to_bytes().into(),
             system_program: system_program::ID,
