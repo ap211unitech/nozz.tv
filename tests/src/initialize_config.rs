@@ -1,11 +1,13 @@
 use anchor_client::solana_sdk::signer::Signer;
 use nozz_launchpad::state as nozz_state;
+use serial_test::serial;
 
 use crate::utils::{
     send_initialize_config, setup_environment, Environment, InitializeConfigResponse,
 };
 
 #[test]
+#[serial]
 fn test_initialize_config() {
     let Environment {
         client: _,
@@ -27,6 +29,9 @@ fn test_initialize_config() {
     assert_eq!(nozz_config_account.platform_fee_bps, 25);
     assert_eq!(nozz_config_account.streamer_fee_bps, 75);
     assert_eq!(nozz_config_account.bonding_curve_supply_pct, 40);
+    assert_eq!(nozz_config_account.staking_supply_pct, 30);
+    assert_eq!(nozz_config_account.dex_supply_pct, 30);
+    assert_eq!(nozz_config_account.staking_duration_seconds, 157_680_000);
     assert_eq!(
         nozz_config_account.graduation_sol_threshold,
         50 * 1_000_000_000

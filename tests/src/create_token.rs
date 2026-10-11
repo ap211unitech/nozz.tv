@@ -1,7 +1,8 @@
 use anchor_client::{
     anchor_lang::{prelude::system_program, solana_program},
-    solana_sdk::signer::Signer,
+    solana_sdk::{pubkey::Pubkey, signer::Signer},
 };
+use serial_test::serial;
 use nozz_launchpad::{
     accounts as nozz_accounts, instruction as nozz_instructions, state as nozz_state,
     CreateTokenParams,
@@ -24,6 +25,7 @@ fn default_params() -> CreateTokenParams {
 }
 
 #[test]
+#[serial]
 fn test_create_token_success() {
     let Environment {
         client: _,
@@ -32,7 +34,7 @@ fn test_create_token_success() {
         config_pda,
         mint_pubkey,
         bonding_curve_pda,
-        bonding_curve_vault_pda: _,
+        bonding_curve_vault_pda,
         bonding_curve_ata,
     } = setup_environment();
 
@@ -49,6 +51,18 @@ fn test_create_token_success() {
     let expected_bonding_allocation = config
         .initial_token_supply
         .checked_mul(config.bonding_curve_supply_pct as u64)
+        .unwrap()
+        .checked_div(100)
+        .unwrap();
+    let expected_staking_allocation = config
+        .initial_token_supply
+        .checked_mul(config.staking_supply_pct as u64)
+        .unwrap()
+        .checked_div(100)
+        .unwrap();
+    let expected_curve_and_dex_supply = config
+        .initial_token_supply
+        .checked_mul((config.bonding_curve_supply_pct + config.dex_supply_pct) as u64)
         .unwrap()
         .checked_div(100)
         .unwrap();
@@ -70,6 +84,23 @@ fn test_create_token_success() {
     assert_eq!(bc.graduation_sol_threshold, config.graduation_sol_threshold);
     assert!(!bc.complete);
     assert!(!bc.migrated);
+
+    let stake_pool: nozz_state::StakePool = program.account(
+        Pubkey::find_program_address(
+            &[
+                nozz_state::StakePool::SEED,
+                mint_pubkey.as_ref(),
+            ],
+            &nozz_launchpad::ID,
+        )
+        .0,
+    )
+    .unwrap();
+    assert_eq!(stake_pool.mint, mint_pubkey);
+    assert_eq!(stake_pool.creator, payer.pubkey());
+    assert_eq!(stake_pool.min_stake_amount, default_params().min_stake_amount);
+    assert_eq!(stake_pool.reward_vault_balance, expected_staking_allocation);
+    assert_eq!(stake_pool.total_staked, 0);
 
     // Assert mint was created with Token-2022
     let mint_account = program.rpc().get_account(&mint_pubkey).unwrap();
@@ -106,27 +137,10 @@ fn test_create_token_success() {
     // ATA should hold total_supply (already has decimals applied from mint_to)
     assert_eq!(
         ata_balance.amount.parse::<u64>().unwrap(),
-        config.initial_token_supply,
+        expected_curve_and_dex_supply,
     );
-}
 
-#[test]
-fn test_create_token_duplicate_fails() {
-    let Environment {
-        client: _,
-        program,
-        payer,
-        config_pda,
-        mint_pubkey,
-        bonding_curve_pda,
-        bonding_curve_vault_pda,
-        bonding_curve_ata,
-    } = setup_environment();
-
-    send_initialize_config();
-    send_create_token(default_params());
-
-    // Should fail when trying to create a second token — mint PDA already exists
+    // Should fail when trying to create a second token — mint PDA already exists.
     let result = program
         .request()
         .accounts(nozz_accounts::CreateToken {
@@ -136,6 +150,30 @@ fn test_create_token_duplicate_fails() {
             bonding_curve: bonding_curve_pda,
             bonding_curve_vault: bonding_curve_vault_pda,
             bonding_curve_ata: bonding_curve_ata.to_bytes().into(),
+            stake_pool: Pubkey::find_program_address(
+                &[
+                    nozz_launchpad::state::StakePool::SEED,
+                    mint_pubkey.as_ref(),
+                ],
+                &nozz_launchpad::ID,
+            )
+            .0,
+            stake_reward_vault: spl_associated_token_account::get_associated_token_address_with_program_id(
+                &Pubkey::find_program_address(
+                    &[
+                        nozz_launchpad::state::StakePool::SEED,
+                        mint_pubkey.as_ref(),
+                    ],
+                    &nozz_launchpad::ID,
+                )
+                .0
+                .to_bytes()
+                .into(),
+                &mint_pubkey.to_bytes().into(),
+                &spl_token_2022::id(),
+            )
+            .to_bytes()
+            .into(),
             token_program: spl_token_2022::id().to_bytes().into(),
             associated_token_program: spl_associated_token_account::id().to_bytes().into(),
             system_program: system_program::ID,

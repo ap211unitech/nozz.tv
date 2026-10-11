@@ -99,6 +99,15 @@ pub fn send_initialize_config() -> InitializeConfigResponse {
         bonding_curve_ata: _,
     } = setup_environment();
 
+    if program.rpc().get_account(&config_pda).is_ok() {
+        let config = program
+            .account::<NozzLaunchpadConfig>(config_pda)
+            .expect("Failed to read existing launchpad config");
+        return InitializeConfigResponse {
+            treasury: config.treasury,
+        };
+    }
+
     let params = InitializeConfigParams {
         treasury,
         platform_fee_bps: 25,
@@ -106,6 +115,9 @@ pub fn send_initialize_config() -> InitializeConfigResponse {
         initial_token_supply: 100_000_000, // without decimals
         graduation_sol_threshold: 50_000_000_000,
         bonding_curve_supply_pct: 40,
+        staking_supply_pct: 30,
+        dex_supply_pct: 30,
+        staking_duration_seconds: 157_680_000,
     };
 
     let response = program
@@ -118,10 +130,9 @@ pub fn send_initialize_config() -> InitializeConfigResponse {
         .args(nozz_instructions::InitializeConfig { params })
         .send();
 
-    // Either config initialize or fail (if already initialize), always return response
-    match response {
-        _ => InitializeConfigResponse { treasury },
-    }
+    response.expect("Failed to initialize launchpad config");
+
+    InitializeConfigResponse { treasury }
 }
 
 pub fn send_create_token(params: CreateTokenParams) {
@@ -145,6 +156,30 @@ pub fn send_create_token(params: CreateTokenParams) {
             bonding_curve: bonding_curve_pda,
             bonding_curve_vault: bonding_curve_vault_pda,
             bonding_curve_ata: bonding_curve_ata.to_bytes().into(),
+            stake_pool: Pubkey::find_program_address(
+                &[
+                    nozz_launchpad::state::StakePool::SEED,
+                    mint_pubkey.as_ref(),
+                ],
+                &nozz_launchpad::ID,
+            )
+            .0,
+            stake_reward_vault: spl_associated_token_account::get_associated_token_address_with_program_id(
+                &Pubkey::find_program_address(
+                    &[
+                        nozz_launchpad::state::StakePool::SEED,
+                        mint_pubkey.as_ref(),
+                    ],
+                    &nozz_launchpad::ID,
+                )
+                .0
+                .to_bytes()
+                .into(),
+                &mint_pubkey.to_bytes().into(),
+                &spl_token_2022::id(),
+            )
+            .to_bytes()
+            .into(),
             token_program: spl_token_2022::id().to_bytes().into(),
             associated_token_program: spl_associated_token_account::id().to_bytes().into(),
             system_program: system_program::ID,
