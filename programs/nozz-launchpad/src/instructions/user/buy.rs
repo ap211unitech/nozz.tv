@@ -86,7 +86,7 @@ pub fn buy_token(ctx: Context<BuyToken>, sol_amount: u64, min_tokens_out: u64) -
             &[&[
                 BondingCurve::SEED,
                 ctx.accounts.bonding_curve.mint.as_ref(),
-                &[bonding_curve.vault_bump],
+                &[bonding_curve.bump],
             ]],
         ),
         tokens_out,
@@ -196,6 +196,7 @@ pub struct BuyToken<'info> {
     pub bonding_curve: Account<'info, BondingCurve>,
 
     #[account(
+        mut,
         seeds = [BondingCurve::VAULT_SEED, mint.key().as_ref()],
         bump = bonding_curve.vault_bump
     )]
@@ -203,6 +204,7 @@ pub struct BuyToken<'info> {
     pub bonding_curve_sol_vault: UncheckedAccount<'info>,
 
     #[account(
+        mut,
         associated_token::mint = mint,
         associated_token::authority = bonding_curve,
         associated_token::token_program = token_program

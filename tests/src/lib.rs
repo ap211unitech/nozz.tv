@@ -5,3 +5,6 @@ mod initialize_config;
 
 #[cfg(test)]
 mod create_token;
+
+#[cfg(test)]
+mod trading;

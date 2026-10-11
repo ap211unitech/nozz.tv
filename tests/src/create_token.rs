@@ -40,7 +40,11 @@ fn test_create_token_success() {
 
     send_initialize_config();
 
-    send_create_token(default_params());
+    let config_before: nozz_state::NozzLaunchpadConfig = program.account(config_pda).unwrap();
+    let token_exists = program.rpc().get_account(&bonding_curve_pda).is_ok();
+    if !token_exists {
+        send_create_token(default_params());
+    }
 
     // Fetch config so we can compute expected values from it
     let config: nozz_state::NozzLaunchpadConfig = program.account(config_pda).unwrap();
@@ -67,7 +71,10 @@ fn test_create_token_success() {
         .checked_div(100)
         .unwrap();
 
-    assert_eq!(config.token_count, 1);
+    assert_eq!(
+        config.token_count,
+        config_before.token_count + u64::from(!token_exists)
+    );
     assert_eq!(bc.mint, mint_pubkey);
     assert_eq!(bc.creator, payer.pubkey());
     assert_eq!(bc.total_supply, config.initial_token_supply);
