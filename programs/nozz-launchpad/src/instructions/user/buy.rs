@@ -57,7 +57,7 @@ pub fn buy_token(ctx: Context<BuyToken>, sol_amount: u64, min_tokens_out: u64) -
         )?;
     }
 
-    // Transfer SOL: buyer -> bonding curve vault (for SOL)
+    // Keep the creator fee in the vault until it is claimed.
     system_program::transfer(
         CpiContext::new(
             ctx.accounts.system_program.to_account_info(),
@@ -66,7 +66,9 @@ pub fn buy_token(ctx: Context<BuyToken>, sol_amount: u64, min_tokens_out: u64) -
                 to: ctx.accounts.bonding_curve_sol_vault.to_account_info(),
             },
         ),
-        sol_after_fees,
+        sol_amount
+            .checked_sub(platform_fee)
+            .ok_or(NozzError::MathOverflow)?,
     )?;
 
     // Transfer Tokens: bonding_curve ATA -> buyer ATA (TransferChecked for Token-2022)

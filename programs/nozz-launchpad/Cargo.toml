@@ -27,6 +27,9 @@ anchor-spl = { version = "0.32.1", features = [
     "token_2022",
     "token_2022_extensions",
 ] }
+raydium-cp-swap = { git = "https://github.com/raydium-io/raydium-cp-swap", rev = "609780f165d234a0aa9699cac90178a3fa36fd43", features = [
+    "cpi",
+] }
 
 
 [lints.rust]

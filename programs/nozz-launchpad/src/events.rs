@@ -36,6 +36,17 @@ pub struct FeesClaimed {
     pub timestamp: i64,
 }
 
+#[event]
+pub struct TokenGraduated {
+    pub mint: Pubkey,
+    pub bonding_curve: Pubkey,
+    pub pool: Pubkey,
+    pub sol_amount: u64,
+    pub token_amount: u64,
+    pub locked_lp_tokens: u64,
+    pub timestamp: i64,
+}
+
 /***************  Staking events ***************/
 
 #[event]
